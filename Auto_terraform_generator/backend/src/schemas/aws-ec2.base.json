@@ -1,0 +1,226 @@
+{
+  "providerKey": "aws",
+  "terraformType": "aws_instance",
+  "canvasType": "aws-ec2",
+  "displayName": "AWS EC2 Instance",
+  "icon": "Server",
+  "color": "#FF9900",
+  "compatibleWith": ">=5.0.0 <7.0.0",
+  "sections": [
+    { "key": "general", "label": "General",  "order": 1, "defaultExpanded": true,  "collapsible": false },
+    { "key": "network", "label": "Network",  "order": 2, "defaultExpanded": true,  "collapsible": true  },
+    { "key": "storage", "label": "Storage",  "order": 3, "defaultExpanded": false, "collapsible": true  },
+    { "key": "advanced","label": "Advanced", "order": 4, "defaultExpanded": false, "collapsible": true  }
+  ],
+  "fields": [
+    {
+      "key": "instanceType",
+      "tfPath": "instance_type",
+      "label": "Instance Type",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "default": "t3.micro",
+      "helpText": "EC2 instance type. t3/t4g for burstable workloads, m6i/m7i for general purpose, c6i for compute-optimised, r6i for memory-intensive.",
+      "validation": {
+        "enum": [
+          "t2.nano","t2.micro","t2.small","t2.medium","t2.large","t2.xlarge","t2.2xlarge",
+          "t3.nano","t3.micro","t3.small","t3.medium","t3.large","t3.xlarge","t3.2xlarge",
+          "t3a.nano","t3a.micro","t3a.small","t3a.medium","t3a.large","t3a.xlarge","t3a.2xlarge",
+          "t4g.nano","t4g.micro","t4g.small","t4g.medium","t4g.large","t4g.xlarge","t4g.2xlarge",
+          "m5.large","m5.xlarge","m5.2xlarge","m5.4xlarge","m5.8xlarge","m5.12xlarge","m5.16xlarge","m5.24xlarge",
+          "m6i.large","m6i.xlarge","m6i.2xlarge","m6i.4xlarge","m6i.8xlarge","m6i.12xlarge","m6i.16xlarge","m6i.24xlarge","m6i.32xlarge",
+          "m7i.large","m7i.xlarge","m7i.2xlarge","m7i.4xlarge","m7i.8xlarge","m7i.12xlarge","m7i.16xlarge","m7i.24xlarge","m7i.48xlarge",
+          "c5.large","c5.xlarge","c5.2xlarge","c5.4xlarge","c5.9xlarge","c5.12xlarge","c5.18xlarge","c5.24xlarge",
+          "c6i.large","c6i.xlarge","c6i.2xlarge","c6i.4xlarge","c6i.8xlarge","c6i.12xlarge","c6i.16xlarge","c6i.24xlarge","c6i.32xlarge",
+          "c7i.large","c7i.xlarge","c7i.2xlarge","c7i.4xlarge","c7i.8xlarge","c7i.12xlarge","c7i.16xlarge","c7i.24xlarge","c7i.48xlarge",
+          "r5.large","r5.xlarge","r5.2xlarge","r5.4xlarge","r5.8xlarge","r5.12xlarge","r5.16xlarge","r5.24xlarge",
+          "r6i.large","r6i.xlarge","r6i.2xlarge","r6i.4xlarge","r6i.8xlarge","r6i.12xlarge","r6i.16xlarge","r6i.24xlarge","r6i.32xlarge",
+          "r7i.large","r7i.xlarge","r7i.2xlarge","r7i.4xlarge","r7i.8xlarge","r7i.12xlarge","r7i.16xlarge","r7i.24xlarge","r7i.48xlarge",
+          "x2idn.16xlarge","x2idn.24xlarge","x2idn.32xlarge",
+          "p3.2xlarge","p3.8xlarge","p3.16xlarge",
+          "p4d.24xlarge",
+          "g4dn.xlarge","g4dn.2xlarge","g4dn.4xlarge","g4dn.8xlarge","g4dn.12xlarge","g4dn.16xlarge",
+          "g5.xlarge","g5.2xlarge","g5.4xlarge","g5.8xlarge","g5.12xlarge","g5.16xlarge","g5.24xlarge","g5.48xlarge",
+          "inf1.xlarge","inf1.2xlarge","inf1.6xlarge","inf1.24xlarge",
+          "i3.large","i3.xlarge","i3.2xlarge","i3.4xlarge","i3.8xlarge","i3.16xlarge",
+          "i4i.large","i4i.xlarge","i4i.2xlarge","i4i.4xlarge","i4i.8xlarge","i4i.16xlarge","i4i.32xlarge"
+        ]
+      }
+    },
+    {
+      "key": "ami",
+      "tfPath": "ami",
+      "label": "AMI ID",
+      "section": "general",
+      "order": 2,
+      "required": true,
+      "helpText": "Amazon Machine Image ID. Select a preset or type your own AMI ID (e.g. ami-0c55b159cbfafe1f0).",
+      "validation": {
+        "suggestions": [
+          { "label": "Amazon Linux 2023 (us-east-1)",     "value": "ami-0c02fb55956c7d316" },
+          { "label": "Amazon Linux 2 (us-east-1)",         "value": "ami-0cff7528ff583bf9a" },
+          { "label": "Ubuntu 22.04 LTS (us-east-1)",       "value": "ami-0557a15b87f6559cf" },
+          { "label": "Ubuntu 20.04 LTS (us-east-1)",       "value": "ami-083654bd07b5da81d" },
+          { "label": "Windows Server 2022 (us-east-1)",    "value": "ami-0c80e2b6ccf9fae8f" },
+          { "label": "Windows Server 2019 (us-east-1)",    "value": "ami-0f9c44e98edf38a2b" },
+          { "label": "RHEL 9 (us-east-1)",                 "value": "ami-0fe630eb857a6ec83" },
+          { "label": "Debian 12 (us-east-1)",              "value": "ami-064519b8c76274859" }
+        ]
+      }
+    },
+    {
+      "key": "keyName",
+      "tfPath": "key_name",
+      "label": "Key Pair Name",
+      "section": "general",
+      "order": 3,
+      "helpText": "Name of an existing EC2 key pair for SSH access. Leave blank to use SSM Session Manager."
+    },
+    {
+      "key": "iamInstanceProfile",
+      "tfPath": "iam_instance_profile",
+      "label": "IAM Instance Profile",
+      "section": "general",
+      "order": 4,
+      "helpText": "Name (not ARN) of the IAM instance profile to attach."
+    },
+    {
+      "key": "monitoring",
+      "tfPath": "monitoring",
+      "label": "Detailed Monitoring",
+      "section": "general",
+      "order": 5,
+      "default": false,
+      "helpText": "Enable detailed (1-minute) CloudWatch monitoring. Basic (5-minute) is always on."
+    },
+    {
+      "key": "ebsOptimized",
+      "tfPath": "ebs_optimized",
+      "label": "EBS Optimized",
+      "section": "general",
+      "order": 6,
+      "default": false,
+      "helpText": "Enables dedicated bandwidth for EBS I/O. Automatically on for most modern instance types."
+    },
+    {
+      "key": "disableApiTermination",
+      "tfPath": "disable_api_termination",
+      "label": "Termination Protection",
+      "section": "general",
+      "order": 7,
+      "default": false,
+      "helpText": "Prevents accidental termination via API or console. Must disable before Terraform destroy."
+    },
+    {
+      "key": "subnetId",
+      "tfPath": "subnet_id",
+      "label": "Subnet ID",
+      "section": "network",
+      "order": 1,
+      "helpText": "Subnet to launch the instance into. Determines the AZ and public/private placement."
+    },
+    {
+      "key": "vpcSecurityGroupIds",
+      "tfPath": "vpc_security_group_ids",
+      "label": "Security Group IDs",
+      "section": "network",
+      "order": 2,
+      "helpText": "One or more security group IDs controlling inbound/outbound traffic.",
+      "validation": { "list": true }
+    },
+    {
+      "key": "associatePublicIpAddress",
+      "tfPath": "associate_public_ip_address",
+      "label": "Associate Public IP",
+      "section": "network",
+      "order": 3,
+      "default": false,
+      "helpText": "Assign a public IPv4 on launch. Only effective in subnets with an Internet Gateway route."
+    },
+    {
+      "key": "privateIp",
+      "tfPath": "private_ip",
+      "label": "Private IP Address",
+      "section": "network",
+      "order": 4,
+      "helpText": "Specific private IP within the subnet CIDR. Leave blank for AWS auto-assignment."
+    },
+    {
+      "key": "rootBlockDeviceVolumeSize",
+      "tfPath": "root_block_device.volume_size",
+      "label": "Root Volume Size (GB)",
+      "section": "storage",
+      "order": 1,
+      "default": 20,
+      "helpText": "Size of the root EBS volume in GiB. Minimum depends on the AMI (typically 8 GB).",
+      "validation": { "min": 8, "max": 16384 }
+    },
+    {
+      "key": "rootBlockDeviceVolumeType",
+      "tfPath": "root_block_device.volume_type",
+      "label": "Root Volume Type",
+      "section": "storage",
+      "order": 2,
+      "default": "gp3",
+      "helpText": "gp3 — recommended SSD. io2 — provisioned IOPS. sc1/st1 — HDD for sequential access.",
+      "validation": { "enum": ["gp2","gp3","io1","io2","sc1","st1","standard"] }
+    },
+    {
+      "key": "rootBlockDeviceEncrypted",
+      "tfPath": "root_block_device.encrypted",
+      "label": "Encrypt Root Volume",
+      "section": "storage",
+      "order": 3,
+      "default": false,
+      "helpText": "Encrypt root EBS volume with the default AWS-managed KMS key."
+    },
+    {
+      "key": "rootBlockDeviceDeleteOnTermination",
+      "tfPath": "root_block_device.delete_on_termination",
+      "label": "Delete Root Volume on Termination",
+      "section": "storage",
+      "order": 4,
+      "default": true,
+      "helpText": "Delete root volume on instance termination. Disable to preserve for forensics or re-attach."
+    },
+    {
+      "key": "userData",
+      "tfPath": "user_data",
+      "label": "User Data (shell script)",
+      "section": "advanced",
+      "order": 1,
+      "helpText": "Shell script or cloud-init config executed on first boot. Do not include credentials.",
+      "validation": { "multiline": true }
+    },
+    {
+      "key": "instanceInitiatedShutdownBehavior",
+      "tfPath": "instance_initiated_shutdown_behavior",
+      "label": "Shutdown Behaviour",
+      "section": "advanced",
+      "order": 2,
+      "default": "stop",
+      "helpText": "stop — instance stops on OS shutdown (default). terminate — instance is destroyed.",
+      "validation": { "enum": ["stop","terminate"] }
+    },
+    {
+      "key": "tenancy",
+      "tfPath": "tenancy",
+      "label": "Tenancy",
+      "section": "advanced",
+      "order": 3,
+      "default": "default",
+      "helpText": "default — shared hardware. dedicated — single-tenant host. host — dedicated host (BYOL).",
+      "validation": { "enum": ["default","dedicated","host"] }
+    },
+    {
+      "key": "tags",
+      "tfPath": "tags",
+      "label": "Tags",
+      "section": "advanced",
+      "order": 4,
+      "helpText": "Key-value map of tags applied to the instance and root volume.",
+      "validation": { "map": true }
+    }
+  ]
+}

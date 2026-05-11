@@ -1,0 +1,50 @@
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #dde1e7;
+  --border-active: #0969da;
+  --accent: #1a7f37;
+  --accent-bg: #dafbe1;
+  --text: #1a1e26;
+  --text-muted: #5a6270;
+  --text-dim: #8b95a1;
+  --error: #cf222e;
+  --error-dim: #fff0ee;
+  --error-border: #ffcdd2;
+  --warning: #9a6700;
+  --tag-bg: #eef1f5;
+  --section-header: #f8f9fb;
+  --mono: "JetBrains Mono", monospace;
+  --sans: "Syne", sans-serif;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface-2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* Selection */
+::selection { background: rgba(9,105,218,0.15); }
+
+/* Native select option colors (light theme) */
+select option { background: #ffffff; color: #1a1e26; }
