@@ -1,0 +1,26 @@
+# Terraform generated files
+**/.terraform/*
+**/.terraform.lock.hcl
+
+# Terraform state
+**/*.tfstate
+**/*.tfstate.*
+
+# Crash logs
+crash.log
+
+# Sensitive variable files
+*.tfvars
+*.tfvars.json
+
+# Ignore secrets/keys
+*.pem
+*.key
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
