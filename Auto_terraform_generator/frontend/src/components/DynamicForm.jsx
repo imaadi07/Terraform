@@ -1,14 +1,19 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 const API_BASE = "http://localhost:5000";
 
+function getDataSource(field) {
+  return field.dataSource || field.dynamicSource;
+}
+
 function inferType(field) {
-  if (field.dynamicSource) return "dynamic";
-  if (field.validation?.enum) return "enum";
+  if (getDataSource(field)) return "dynamic";
+  if (field.validation?.enum || field.enumValues) return "enum";
   if (field.validation?.list) return "list";
-  if (field.validation?.map) return "map";
+  if (field.validation?.map || field.type === "object") return "map";
   if (field.validation?.multiline) return "multiline";
+  if (field.type) return field.type;
   if (typeof field.default === "boolean") return "boolean";
   if (typeof field.default === "number") return "number";
   return "string";
@@ -35,50 +40,111 @@ function Toggle({ value, onChange }) {
   );
 }
 
-function DynamicSelect({ field, value, onChange }) {
+function DynamicSelect({ field, value, onChange, formData }) {
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const source = getDataSource(field);
+  const dependencyValue = source?.dependsOn ? formData[source.dependsOn] : null;
+  const multiple = source?.multiple === true;
 
   useEffect(() => {
     async function fetchOptions() {
+      if (!source?.endpoint) return;
+
       try {
         setLoading(true);
+        setError("");
+
+        const params = {};
+        if (source.queryParam && dependencyValue) {
+          params[source.queryParam] = dependencyValue;
+        }
 
         const res = await axios.get(
-          `${API_BASE}${field.dynamicSource.endpoint}`
+          `${API_BASE}${source.endpoint}`,
+          { params }
         );
 
         setOptions(res.data.data || []);
       } catch (err) {
         console.error(err);
+        setOptions([]);
+        setError("Unable to load options");
       } finally {
         setLoading(false);
       }
     }
 
     fetchOptions();
-  }, [field]);
+  }, [source, dependencyValue]);
+
+  if (multiple) {
+    return (
+      <>
+        <select
+          multiple
+          value={Array.isArray(value) ? value : []}
+          onChange={(e) =>
+            onChange(
+              Array.from(e.target.selectedOptions, (option) => option.value)
+            )
+          }
+          style={{
+            ...inputBase,
+            minHeight: "120px",
+          }}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+
+        {loading && (
+          <div style={{ marginTop: "6px", fontSize: "12px", color: "#57606a" }}>
+            Loading...
+          </div>
+        )}
+
+        {error && (
+          <div style={{ marginTop: "6px", fontSize: "12px", color: "#cf222e" }}>
+            {error}
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
-    <select
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
-      style={inputBase}
-    >
-      <option value="">
-        {loading ? "Loading..." : "Select option"}
-      </option>
-
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
+    <>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        style={inputBase}
+      >
+        <option value="">
+          {loading ? "Loading..." : "Select option"}
         </option>
-      ))}
-    </select>
+
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+
+      {error && (
+        <div style={{ marginTop: "6px", fontSize: "12px", color: "#cf222e" }}>
+          {error}
+        </div>
+      )}
+    </>
   );
 }
 
-function FieldInput({ field, value, onChange }) {
+function FieldInput({ field, value, onChange, formData }) {
   const type = inferType(field);
 
   if (type === "dynamic") {
@@ -87,6 +153,7 @@ function FieldInput({ field, value, onChange }) {
         field={field}
         value={value}
         onChange={onChange}
+        formData={formData}
       />
     );
   }
@@ -107,7 +174,7 @@ function FieldInput({ field, value, onChange }) {
         onChange={(e) => onChange(e.target.value)}
         style={inputBase}
       >
-        {field.validation.enum.map((opt) => (
+        {(field.validation?.enum || field.enumValues || []).map((opt) => (
           <option key={opt} value={opt}>
             {opt}
           </option>
@@ -266,6 +333,7 @@ function SectionCard({
               <FieldInput
                 field={field}
                 value={formData[field.key]}
+                formData={formData}
                 onChange={(value) =>
                   handleChange(field.key, value)
                 }

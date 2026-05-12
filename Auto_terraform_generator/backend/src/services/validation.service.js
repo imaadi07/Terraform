@@ -6,10 +6,11 @@ import { AppError } from "../utils/error.util.js";
  * the default value and validation hints.
  */
 export function inferFieldType(field) {
-  if (field.validation?.enum) return "enum";
+  if (field.validation?.enum || field.enumValues) return "enum";
   if (field.validation?.list) return "list";
-  if (field.validation?.map) return "map";
+  if (field.validation?.map || field.type === "object") return "map";
   if (field.validation?.multiline) return "multiline";
+  if (field.type) return field.type;
   if (typeof field.default === "boolean") return "boolean";
   if (typeof field.default === "number") return "number";
   return "string";
@@ -62,9 +63,11 @@ export function validateConstraints(schema, userValues) {
     const value = userValues[field.key];
     if (value === undefined || value === null || value === "") continue;
 
-    if (field.validation?.enum && !field.validation.enum.includes(value)) {
+    const enumValues = field.validation?.enum || field.enumValues;
+
+    if (enumValues && !enumValues.includes(value)) {
       throw new AppError(
-        `Invalid value "${value}" for ${field.label}. Allowed: ${field.validation.enum.join(", ")}`
+        `Invalid value "${value}" for ${field.label}. Allowed: ${enumValues.join(", ")}`
       );
     }
 

@@ -1,0 +1,99 @@
+{
+  "providerKey": "aws",
+  "terraformType": "aws_vpc",
+  "canvasType": "aws-vpc",
+  "displayName": "AWS VPC",
+  "icon": "Network",
+  "color": "#8C4FFF",
+  "compatibleWith": ">=5.0.0 <7.0.0",
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    },
+    {
+      "key": "dns",
+      "label": "DNS",
+      "order": 2,
+      "defaultExpanded": true,
+      "collapsible": true
+    },
+    {
+      "key": "advanced",
+      "label": "Advanced",
+      "order": 3,
+      "defaultExpanded": false,
+      "collapsible": true
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "cidrBlock",
+      "tfPath": "cidr_block",
+      "label": "CIDR Block",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "default": "10.0.0.0/16",
+      "helpText": "IPv4 CIDR block for the VPC (e.g. 10.0.0.0/16).",
+      "validation": {
+        "regex": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+      }
+    },
+    {
+      "key": "instanceTenancy",
+      "tfPath": "instance_tenancy",
+      "label": "Instance Tenancy",
+      "section": "general",
+      "order": 2,
+      "default": "default",
+      "helpText": "Tenancy option for instances launched into the VPC.",
+      "validation": {
+        "enum": ["default", "dedicated"]
+      }
+    },
+    {
+      "key": "enableDnsHostnames",
+      "tfPath": "enable_dns_hostnames",
+      "label": "Enable DNS Hostnames",
+      "section": "dns",
+      "order": 1,
+      "default": true,
+      "helpText": "Enable DNS hostnames for instances in the VPC."
+    },
+    {
+      "key": "enableDnsSupport",
+      "tfPath": "enable_dns_support",
+      "label": "Enable DNS Support",
+      "section": "dns",
+      "order": 2,
+      "default": true,
+      "helpText": "Enable DNS resolution through the Amazon DNS server."
+    },
+    {
+      "key": "assignGeneratedIpv6CidrBlock",
+      "tfPath": "assign_generated_ipv6_cidr_block",
+      "label": "Assign IPv6 CIDR Block",
+      "section": "advanced",
+      "order": 1,
+      "default": false,
+      "helpText": "Request an Amazon-provided /56 IPv6 CIDR block."
+    },
+    {
+      "key": "tags",
+      "tfPath": "tags",
+      "label": "Tags",
+      "section": "advanced",
+      "order": 2,
+      "helpText": "Key-value tags applied to the VPC.",
+      "validation": {
+        "map": true
+      }
+    }
+  ]
+}

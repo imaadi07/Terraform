@@ -7,44 +7,161 @@ import { sanitizeTerraformName } from "../utils/naming.util.js";
 
 export class TerraformGeneratorService {
   /**
-   * Build a terraform config object from the UI manifest schema + raw user values.
-   * Handles dot-notation tfPaths like "root_block_device.volume_size" automatically.
+   * Build a Terraform config object from schema + user values.
+   * refMap: optional { fieldKey → tfRef string } — when a field's key
+   * appears in refMap its value is emitted as a raw Terraform reference
+   * (no quotes) instead of the user-typed literal.
    */
-  generate(schema, userValues) {
-    validateRequiredFields(schema, userValues);
-    validateConstraints(schema, userValues);
-
+  _buildConfig(schema, userValues, refMap = {}) {
     const tfConfig = {};
 
     for (const field of schema.fields) {
+      if (field.uiOnly || !field.tfPath) continue;
+
+      // If this field is satisfied by a Terraform reference, store it
+      // under a special marker so the serializer can emit it unquoted.
+      if (refMap[field.key]) {
+        const parts = field.tfPath.split(".");
+        this._setNested(tfConfig, parts, { __tfRef: refMap[field.key] });
+        continue;
+      }
+
       const type = inferFieldType(field);
       const raw = userValues[field.key];
-
-      // Use default if user provided nothing
-      const rawValue = (raw === undefined || raw === null || raw === "") ? field.default : raw;
+      const rawValue =
+        raw === undefined || raw === null || raw === ""
+          ? field.default
+          : raw;
       if (rawValue === undefined) continue;
 
       const coerced = coerceValue(rawValue, type);
       if (coerced === undefined) continue;
 
-      // Handle dot-notation tfPath: "root_block_device.volume_size"
       const parts = field.tfPath.split(".");
-      if (parts.length === 1) {
-        tfConfig[parts[0]] = coerced;
+      this._setNested(tfConfig, parts, coerced);
+    }
+
+    return tfConfig;
+  }
+
+  /** Write a nested value into obj using a parts array path. */
+  _setNested(obj, parts, value) {
+    let cursor = obj;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!cursor[parts[i]]) cursor[parts[i]] = {};
+      cursor = cursor[parts[i]];
+    }
+
+    cursor[parts[parts.length - 1]] = value;
+  }
+
+  /** Emit a data source block for an "existing" dependency. */
+  _dataBlock(terraformType, resourceName, existingId) {
+    const idLine = existingId
+      ? `  id = "${existingId}"`
+      : `  # id = var.${resourceName}_id  # supply the existing resource ID`;
+    return [
+      `data "${terraformType}" "${resourceName}" {`,
+      idLine,
+      `}`,
+    ].join("\n");
+  }
+
+  /**
+   * Serialize a single resource block to HCL lines.
+   * Handles __tfRef markers — emits them without quotes so Terraform
+   * can resolve the reference at plan time.
+   */
+  _resourceBlock(terraformType, resourceName, tfConfig) {
+    const lines = [];
+    lines.push(`resource "${terraformType}" "${resourceName}" {`);
+    lines.push(this._serializeWithRefs(tfConfig, 1).trimEnd());
+    lines.push(`}`);
+    return lines.join("\n");
+  }
+
+  /** Like serializeToHcl but handles { __tfRef } objects as raw refs. */
+  _serializeWithRefs(obj, indent) {
+    const pad = "  ".repeat(indent);
+    let out = "";
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (value === undefined || value === null) continue;
+
+      // Raw Terraform reference — emit without quotes.
+      if (value && typeof value === "object" && value.__tfRef) {
+        out += `${pad}${key} = ${value.__tfRef}\n`;
+        continue;
+      }
+
+      // Delegate everything else to the standard serializer.
+      out += serializeToHcl({ [key]: value }, indent)
+        .split("\n")
+        .join("\n");
+    }
+
+    return out;
+  }
+
+  /**
+   * Generate Terraform HCL for a single resource (original behaviour).
+   */
+  generate(schema, userValues) {
+    validateRequiredFields(schema, userValues);
+    validateConstraints(schema, userValues);
+
+    const tfConfig = this._buildConfig(schema, userValues);
+    const resourceName = sanitizeTerraformName(`${schema.canvasType}_resource`);
+
+    return this._buildFile([
+      this._resourceBlock(schema.terraformType, resourceName, tfConfig),
+    ]);
+  }
+
+  /**
+   * Generate Terraform HCL for a primary resource plus its resolved
+   * dependencies.  Dependencies are emitted first so Terraform can
+   * resolve references in the correct order.
+   *
+   * @param {object} primarySchema   — primary resource base.json
+   * @param {object} primaryValues   — user values for the primary resource
+   * @param {Array}  resolvedDeps    — output of DependencyResolverService.resolve()
+   * @param {object} refMap          — output of DependencyResolverService.buildRefMap()
+   */
+  generateMulti(primarySchema, primaryValues, resolvedDeps, refMap) {
+    validateRequiredFields(primarySchema, primaryValues);
+    validateConstraints(primarySchema, primaryValues);
+
+    const blocks = [];
+
+    // 1. Emit dependency blocks first (leaves first due to resolver ordering).
+    for (const dep of resolvedDeps) {
+      if (dep.isDataSource) {
+        // "existing" mode — emit a data source block so Terraform can look up
+        // the resource by the user-supplied ID.
+        blocks.push(this._dataBlock(dep.terraformType, dep.resourceName, dep.existingId));
       } else {
-        // Nested — build the intermediate object
-        let cursor = tfConfig;
-        for (let i = 0; i < parts.length - 1; i++) {
-          if (!cursor[parts[i]]) cursor[parts[i]] = {};
-          cursor = cursor[parts[i]];
-        }
-        cursor[parts[parts.length - 1]] = coerced;
+        // "inline-create" mode — emit a full resource block, injecting any
+        // references resolved from this dep's own nested dependencies.
+        const depConfig = this._buildConfig(dep.schema, dep.values, dep.nestedRefMap || {});
+        blocks.push(this._resourceBlock(dep.terraformType, dep.resourceName, depConfig));
       }
     }
 
-    const resourceName = sanitizeTerraformName(`${schema.canvasType}_resource`);
+    // 2. Emit primary block with Terraform references injected.
+    const primaryConfig = this._buildConfig(primarySchema, primaryValues, refMap);
+    const primaryName = sanitizeTerraformName(`${primarySchema.canvasType}_resource`);
+    blocks.push(
+      this._resourceBlock(primarySchema.terraformType, primaryName, primaryConfig)
+    );
 
-    const hcl = [
+    return this._buildFile(blocks);
+  }
+
+  /** Wrap resource blocks in the standard provider header. */
+  _buildFile(blocks) {
+    return [
       `terraform {`,
       `  required_providers {`,
       `    aws = {`,
@@ -58,13 +175,8 @@ export class TerraformGeneratorService {
       `  region = "us-east-1"`,
       `}`,
       ``,
-      `resource "${schema.terraformType}" "${resourceName}" {`,
-      serializeToHcl(tfConfig, 1).trimEnd(),
-      `}`,
-      ``,
+      ...blocks.map((b) => b + "\n"),
     ].join("\n");
-
-    return hcl;
   }
 
   saveTerraformFile(content) {

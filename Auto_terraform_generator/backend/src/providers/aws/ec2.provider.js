@@ -5,6 +5,8 @@ import {
   DescribeSubnetsCommand,
   DescribeSecurityGroupsCommand,
   DescribeImagesCommand,
+  DescribeVpcsCommand,
+  DescribeAvailabilityZonesCommand,
 } from "@aws-sdk/client-ec2";
 
 const client = new EC2Client({
@@ -12,14 +14,33 @@ const client = new EC2Client({
 });
 
 export async function getInstanceTypes() {
-  const response = await client.send(
-    new DescribeInstanceTypesCommand({})
-  );
+  const instanceTypes = [];
+  let NextToken;
 
-  return response.InstanceTypes.map((item) => ({
+  do {
+    const response = await client.send(
+      new DescribeInstanceTypesCommand({ NextToken })
+    );
+
+    instanceTypes.push(...(response.InstanceTypes || []));
+    NextToken = response.NextToken;
+  } while (NextToken);
+
+  return instanceTypes.map((item) => ({
     label: item.InstanceType,
     value: item.InstanceType,
   })).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export async function getAvailabilityZones() {
+  const response = await client.send(
+    new DescribeAvailabilityZonesCommand({})
+  );
+
+  return (response.AvailabilityZones || []).map((item) => ({
+    label: item.ZoneName,
+    value: item.ZoneName,
+  }));
 }
 
 export async function getKeyPairs() {
@@ -27,29 +48,52 @@ export async function getKeyPairs() {
     new DescribeKeyPairsCommand({})
   );
 
-  return response.KeyPairs.map((item) => ({
+  return (response.KeyPairs || []).map((item) => ({
     label: item.KeyName,
     value: item.KeyName,
   }));
 }
 
-export async function getSubnets() {
+export async function getVpcs() {
   const response = await client.send(
-    new DescribeSubnetsCommand({})
+    new DescribeVpcsCommand({})
   );
 
-  return response.Subnets.map((item) => ({
+  return (response.Vpcs || []).map((item) => {
+    const name = item.Tags?.find((tag) => tag.Key === "Name")?.Value;
+
+    return {
+      label: name ? `${name} (${item.VpcId})` : item.VpcId,
+      value: item.VpcId,
+    };
+  });
+}
+
+export async function getSubnets(vpcId) {
+  const response = await client.send(
+    new DescribeSubnetsCommand({
+      Filters: vpcId
+        ? [{ Name: "vpc-id", Values: [vpcId] }]
+        : undefined,
+    })
+  );
+
+  return (response.Subnets || []).map((item) => ({
     label: `${item.SubnetId} (${item.AvailabilityZone})`,
     value: item.SubnetId,
   }));
 }
 
-export async function getSecurityGroups() {
+export async function getSecurityGroups(vpcId) {
   const response = await client.send(
-    new DescribeSecurityGroupsCommand({})
+    new DescribeSecurityGroupsCommand({
+      Filters: vpcId
+        ? [{ Name: "vpc-id", Values: [vpcId] }]
+        : undefined,
+    })
   );
 
-  return response.SecurityGroups.map((item) => ({
+  return (response.SecurityGroups || []).map((item) => ({
     label: `${item.GroupName} (${item.GroupId})`,
     value: item.GroupId,
   }));
@@ -62,7 +106,7 @@ export async function getAmis() {
     })
   );
 
-  return response.Images
+  return (response.Images || [])
     .sort(
       (a, b) =>
         new Date(b.CreationDate) - new Date(a.CreationDate)

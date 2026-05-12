@@ -1,0 +1,150 @@
+{
+  "$schema": "../../../../ui-manifest.schema.json",
+  "providerKey": "aws",
+  "terraformType": "aws_redshiftserverless_namespace",
+  "canvasType": "aws-redshiftserverless-namespace",
+  "displayName": "AWS Redshift Serverless Namespace",
+  "icon": "Database",
+  "color": "#8C4FFF",
+  "compatibleWith": ">=5.0.0 <7.0.0",
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    },
+    {
+      "key": "database",
+      "label": "Database",
+      "order": 2,
+      "defaultExpanded": true,
+      "collapsible": true
+    },
+    {
+      "key": "security",
+      "label": "Security & Encryption",
+      "order": 3,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "advanced",
+      "label": "Advanced",
+      "order": 4,
+      "defaultExpanded": false,
+      "collapsible": true
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "namespaceName",
+      "tfPath": "namespace_name",
+      "label": "Namespace Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "Logical Redshift namespace name. Must be unique.",
+      "validation": {
+        "regex": "^[a-z0-9][a-z0-9\\-]{1,62}[a-z0-9]$",
+        "minLength": 3,
+        "maxLength": 64
+      }
+    },
+
+    {
+      "key": "dbName",
+      "tfPath": "db_name",
+      "label": "Database Name",
+      "section": "database",
+      "order": 1,
+      "default": "dev",
+      "helpText": "Default database created inside the namespace."
+    },
+
+    {
+      "key": "adminUsername",
+      "tfPath": "admin_username",
+      "label": "Admin Username",
+      "section": "database",
+      "order": 2,
+      "helpText": "Administrator username for Redshift."
+    },
+
+    {
+      "key": "adminUserPassword",
+      "tfPath": "admin_user_password",
+      "label": "Admin Password",
+      "section": "database",
+      "order": 3,
+      "helpText": "Administrator password."
+    },
+
+    {
+      "key": "manageAdminPassword",
+      "tfPath": "manage_admin_password",
+      "label": "Manage Password with AWS",
+      "section": "database",
+      "order": 4,
+      "default": true,
+      "helpText": "Store and manage the admin password in AWS Secrets Manager automatically."
+    },
+
+    {
+      "key": "defaultIamRoleArn",
+      "tfPath": "default_iam_role_arn",
+      "label": "Default IAM Role ARN",
+      "section": "security",
+      "order": 1,
+      "helpText": "Default IAM role used for COPY/UNLOAD operations."
+    },
+
+    {
+      "key": "iamRoles",
+      "tfPath": "iam_roles",
+      "label": "IAM Roles",
+      "section": "security",
+      "order": 2,
+      "helpText": "Comma-separated IAM role ARNs.",
+      "validation": {
+        "list": true
+      }
+    },
+
+    {
+      "key": "kmsKeyId",
+      "tfPath": "kms_key_id",
+      "label": "KMS Key ID",
+      "section": "security",
+      "order": 3,
+      "helpText": "Custom KMS key ARN or ID."
+    },
+
+    {
+      "key": "logExports",
+      "tfPath": "log_exports",
+      "label": "Log Exports",
+      "section": "advanced",
+      "order": 1,
+      "helpText": "CloudWatch logs to export.",
+      "validation": {
+        "list": true
+      }
+    },
+
+    {
+      "key": "tags",
+      "tfPath": "tags",
+      "label": "Tags",
+      "section": "advanced",
+      "order": 2,
+      "helpText": "Key-value resource tags.",
+      "validation": {
+        "map": true
+      }
+    }
+  ]
+}

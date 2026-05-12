@@ -7,6 +7,34 @@
   "color": "#FF9900",
   "compatibleWith": ">=5.0.0 <7.0.0",
 
+  "dependencies": [
+    {
+      "resourceType": "aws-subnet",
+      "terraformType": "aws_subnet",
+      "displayName": "Subnet",
+      "reason": "EC2 instances are placed inside a subnet. Use an existing subnet or let the system create one (which will also create a VPC).",
+
+      "linkField": "subnetId",
+
+      "tfOutputRef": "aws_subnet.{resourceName}.id",
+
+      "required": false,
+
+      "resolutionStrategy": {
+        "defaultMode": "existing",
+        "allowModeSwitch": true
+      },
+
+      "existingTfOutputRef": "data.aws_subnet.{resourceName}.id",
+
+      "existingDataSource": {
+        "endpoint": "/api/dynamic/aws/ec2/subnets"
+      },
+
+      "existingLabel": "Subnet ID"
+    }
+  ],
+
   "sections": [
     {
       "key": "general",
@@ -48,7 +76,7 @@
       "required": true,
       "default": "t3.micro",
 
-      "dynamicSource": {
+      "dataSource": {
         "endpoint": "/api/dynamic/aws/ec2/instance-types"
       },
 
@@ -63,7 +91,7 @@
       "order": 2,
       "required": true,
 
-      "dynamicSource": {
+      "dataSource": {
         "endpoint": "/api/dynamic/aws/ec2/amis"
       },
 
@@ -77,7 +105,7 @@
       "section": "general",
       "order": 3,
 
-      "dynamicSource": {
+      "dataSource": {
         "endpoint": "/api/dynamic/aws/ec2/keypairs"
       },
 
@@ -134,7 +162,7 @@
       "section": "network",
       "order": 1,
 
-      "dynamicSource": {
+      "dataSource": {
         "endpoint": "/api/dynamic/aws/ec2/subnets"
       },
 
@@ -152,7 +180,7 @@
         "list": true
       },
 
-      "dynamicSource": {
+      "dataSource": {
         "endpoint": "/api/dynamic/aws/ec2/security-groups"
       },
 
@@ -205,15 +233,7 @@
       "default": "gp3",
 
       "validation": {
-        "enum": [
-          "gp2",
-          "gp3",
-          "io1",
-          "io2",
-          "sc1",
-          "st1",
-          "standard"
-        ]
+        "enum": ["gp2", "gp3", "io1", "io2", "sc1", "st1", "standard"]
       },
 
       "helpText": "Root EBS volume type."
@@ -260,10 +280,7 @@
       "default": "stop",
 
       "validation": {
-        "enum": [
-          "stop",
-          "terminate"
-        ]
+        "enum": ["stop", "terminate"]
       }
     },
 
@@ -276,11 +293,7 @@
       "default": "default",
 
       "validation": {
-        "enum": [
-          "default",
-          "dedicated",
-          "host"
-        ]
+        "enum": ["default", "dedicated", "host"]
       }
     },
 

@@ -1,0 +1,170 @@
+{
+  "$schema": "../../../../ui-manifest-extended.schema.json",
+  "providerKey": "aws",
+  "terraformType": "aws_s3_bucket",
+  "canvasType": "aws-s3",
+  "displayName": "AWS S3 Bucket",
+  "icon": "FolderOpen",
+  "color": "#FF9900",
+  "compatibleWith": ">=5.0.0 <7.0.0",
+  "version": "5.0",
+  "description": "Create an Amazon S3 Bucket.",
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    },
+    {
+      "key": "versioning",
+      "label": "Versioning & Replication",
+      "order": 2,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "access",
+      "label": "Access & Security",
+      "order": 3,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "advanced",
+      "label": "Advanced",
+      "order": 4,
+      "defaultExpanded": false,
+      "collapsible": true
+    }
+  ],
+  "fields": [
+    {
+      "key": "bucketName",
+      "tfPath": "bucket",
+      "type": "string",
+      "label": "Bucket Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "Globally unique bucket name (3-63 lowercase letters, digits, hyphens). Must not contain uppercase or underscores.",
+      "aliases": ["bucket", "bucket_name"],
+      "validation": {
+        "regex": "^[a-z0-9][a-z0-9\\-]{1,61}[a-z0-9]$",
+        "minLength": 3,
+        "maxLength": 63
+      }
+    },
+    {
+      "key": "forceDestroy",
+      "tfPath": "force_destroy",
+      "type": "boolean",
+      "label": "Force Destroy",
+      "section": "general",
+      "order": 2,
+      "required": false,
+      "default": false,
+      "helpText": "When true, allows Terraform to delete the bucket even if it contains objects. Use with caution - all objects will be permanently deleted."
+    },
+    {
+      "key": "objectLockEnabled",
+      "tfPath": "object_lock_enabled",
+      "type": "boolean",
+      "label": "Object Lock",
+      "section": "versioning",
+      "order": 1,
+      "required": false,
+      "default": false,
+      "helpText": "Enables S3 Object Lock to prevent objects from being deleted or overwritten for a fixed retention period (WORM compliance). Cannot be disabled after creation."
+    },
+    {
+      "key": "versioningEnabled",
+      "tfPath": null,
+      "type": "boolean",
+      "label": "Enable Versioning",
+      "section": "versioning",
+      "order": 2,
+      "required": false,
+      "default": false,
+      "aliases": ["enableVersioning", "versioning"]
+    },
+    {
+      "key": "encryptionType",
+      "tfPath": null,
+      "type": "enum",
+      "label": "Encryption Type",
+      "section": "access",
+      "order": 1,
+      "required": false,
+      "default": "SSE-S3",
+      "enumValues": ["SSE-S3", "SSE-KMS", "DSSE-KMS"],
+      "aliases": ["encryption_type"]
+    },
+    {
+      "key": "tags",
+      "tfPath": "tags",
+      "type": "object",
+      "label": "Tags",
+      "section": "advanced",
+      "order": 1,
+      "required": false,
+      "helpText": "Key-value map of resource tags."
+    }
+  ],
+  "nestedBlocks": [
+    {
+      "terraformKey": "versioning",
+      "condition": "versioningEnabled === true || versioningEnabled === 'enabled'",
+      "isArray": false,
+      "fields": [
+        { "key": "enabled", "type": "boolean", "value": true }
+      ]
+    },
+    {
+      "terraformKey": "server_side_encryption_configuration",
+      "condition": "encryptionType !== undefined && encryptionType !== 'None'",
+      "isArray": false,
+      "fields": [
+        {
+          "key": "rule",
+          "type": "block",
+          "fields": [
+            {
+              "key": "apply_server_side_encryption_by_default",
+              "type": "block",
+              "fields": [
+                {
+                  "key": "sse_algorithm",
+                  "type": "string",
+                  "mapFrom": "encryptionType",
+                  "transform": {
+                    "type": "enum-to-sse-algorithm",
+                    "mapping": {
+                      "SSE-S3": "AES256",
+                      "SSE-KMS": "aws:kms",
+                      "DSSE-KMS": "aws:kms:dsse"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "conditionals": [
+    {
+      "condition": "encryptionType === 'SSE-KMS' && !kmsMasterKeyId",
+      "error": "KMS Master Key ID is required when encryption type is SSE-KMS."
+    }
+  ],
+  "fieldDependencies": [],
+  "dataSources": [],
+  "legacyAliases": {
+    "bucketName": ["bucket", "bucket_name"],
+    "versioningEnabled": ["enableVersioning", "versioning"],
+    "encryptionType": ["encryption_type"]
+  }
+}

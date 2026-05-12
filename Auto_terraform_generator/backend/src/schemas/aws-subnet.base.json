@@ -1,0 +1,130 @@
+{
+  "providerKey": "aws",
+  "terraformType": "aws_subnet",
+  "canvasType": "aws-subnet",
+  "displayName": "AWS Subnet",
+  "icon": "Network",
+  "color": "#1A73E8",
+  "compatibleWith": ">=5.0.0 <7.0.0",
+
+  "dependencies": [
+    {
+      "resourceType": "aws-vpc",
+      "terraformType": "aws_vpc",
+      "displayName": "VPC",
+
+      "reason": "A Subnet must belong to a VPC. Either select an existing VPC or let the system create one.",
+
+      "linkField": "vpcId",
+
+      "tfOutputRef": "aws_vpc.{resourceName}.id",
+
+      "required": true,
+
+      "resolutionStrategy": {
+        "defaultMode": "inline-create",
+        "allowModeSwitch": true
+      },
+
+      "existingTfOutputRef": "data.aws_vpc.{resourceName}.id",
+
+      "existingDataSource": {
+        "endpoint": "/api/dynamic/aws/vpcs"
+      },
+
+      "existingLabel": "VPC ID"
+    }
+  ],
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    },
+    {
+      "key": "network",
+      "label": "Network",
+      "order": 2,
+      "defaultExpanded": true,
+      "collapsible": true
+    },
+    {
+      "key": "advanced",
+      "label": "Advanced",
+      "order": 3,
+      "defaultExpanded": false,
+      "collapsible": true
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "cidrBlock",
+      "tfPath": "cidr_block",
+      "label": "CIDR Block",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "default": "10.0.1.0/24",
+      "helpText": "IPv4 CIDR block for the subnet. Must fall within the VPC CIDR.",
+      "validation": {
+        "regex": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+      }
+    },
+    {
+      "key": "vpcId",
+      "tfPath": "vpc_id",
+      "label": "VPC ID",
+      "section": "general",
+      "order": 2,
+      "helpText": "ID of the VPC this subnet belongs to. Filled automatically when using inline-create mode.",
+      "dataSource": {
+        "type": "remote",
+        "endpoint": "/api/dynamic/aws/vpcs"
+      }
+    },
+    {
+      "key": "availabilityZone",
+      "tfPath": "availability_zone",
+      "label": "Availability Zone",
+      "section": "network",
+      "order": 1,
+      "helpText": "AZ for the subnet (e.g. us-east-1a). Leave blank for AWS to choose.",
+      "dataSource": {
+        "endpoint": "/api/dynamic/aws/ec2/availability-zones"
+      }
+    },
+    {
+      "key": "mapPublicIpOnLaunch",
+      "tfPath": "map_public_ip_on_launch",
+      "label": "Auto-assign Public IP",
+      "section": "network",
+      "order": 2,
+      "default": false,
+      "helpText": "Automatically assign a public IP to instances launched in this subnet."
+    },
+    {
+      "key": "assignIpv6AddressOnCreation",
+      "tfPath": "assign_ipv6_address_on_creation",
+      "label": "Auto-assign IPv6 Address",
+      "section": "network",
+      "order": 3,
+      "default": false,
+      "helpText": "Automatically assign an IPv6 address to instances launched in this subnet."
+    },
+    {
+      "key": "tags",
+      "tfPath": "tags",
+      "label": "Tags",
+      "section": "advanced",
+      "order": 1,
+      "helpText": "Key-value tags applied to the subnet.",
+      "validation": {
+        "map": true
+      }
+    }
+  ]
+}

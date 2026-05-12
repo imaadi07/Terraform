@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 
 import terraformRoutes from "./routes/terraform.routes.js";
 import dynamicRoutes from "./routes/dynamic.routes.js";
+import resourceRoutes from "./routes/resource.routes.js";
+import schemaRoutes from "./routes/schema.routes.js";
 
 dotenv.config();
 
@@ -17,10 +19,14 @@ app.use(
   })
 );
 
+app.use("/api/resources", resourceRoutes);
+
+app.use("/api/schema", schemaRoutes);
+
 app.use("/api/terraform", terraformRoutes);
+
 app.use("/api/dynamic", dynamicRoutes);
 
-// Global error handler
 app.use((err, _req, res, _next) => {
   console.error(err);
 

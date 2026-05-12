@@ -1,0 +1,341 @@
+{
+  "$schema": "../../../../ui-manifest.schema.json",
+
+  "providerKey": "aws",
+
+  "terraformType": "aws_redshiftserverless_workgroup",
+
+  "canvasType": "aws-redshiftserverless-workgroup",
+
+  "displayName": "AWS Redshift Serverless Workgroup",
+
+  "icon": "Server",
+
+  "color": "#8C4FFF",
+
+  "compatibleWith": ">=5.0.0 <7.0.0",
+
+  "dependencies": [
+    {
+      "resourceType": "aws-redshiftserverless-namespace",
+      "terraformType": "aws_redshiftserverless_namespace",
+      "displayName": "Redshift Serverless Namespace",
+      "reason": "A Redshift Serverless Namespace must exist before a Workgroup can be created.",
+      "linkField": "namespaceName",
+      "tfOutputRef": "aws_redshiftserverless_namespace.{resourceName}.namespace_name",
+      "required": true,
+      "resolutionStrategy": {
+        "ifMissing": "inline-create",
+        "showFields": "all"
+      }
+    }
+  ],
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    },
+
+    {
+      "key": "network",
+      "label": "Network",
+      "order": 2,
+      "defaultExpanded": true,
+      "collapsible": true
+    },
+
+    {
+      "key": "security",
+      "label": "Security",
+      "order": 3,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+
+    {
+      "key": "advanced",
+      "label": "Advanced",
+      "order": 4,
+      "defaultExpanded": false,
+      "collapsible": true
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "workgroupName",
+
+      "tfPath": "workgroup_name",
+
+      "label": "Workgroup Name",
+
+      "section": "general",
+
+      "order": 1,
+
+      "required": true,
+
+      "helpText": "Redshift Serverless compute workgroup name.",
+
+      "validation": {
+        "regex": "^[a-z0-9][a-z0-9\\-]{1,62}[a-z0-9]$",
+
+        "minLength": 3,
+
+        "maxLength": 64
+      }
+    },
+
+    {
+      "key": "namespaceName",
+
+      "tfPath": "namespace_name",
+
+      "label": "Namespace Name",
+
+      "section": "general",
+
+      "order": 2,
+
+      "required": true,
+
+      "helpText": "Select existing Redshift namespace.",
+
+      "dataSource": {
+        "type": "remote",
+
+        "endpoint": "/api/dynamic/aws/redshift/namespaces"
+      }
+    },
+
+    {
+      "key": "baseCapacity",
+
+      "tfPath": "base_capacity",
+
+      "label": "Base Capacity (RPU)",
+
+      "section": "general",
+
+      "order": 3,
+
+      "default": 8,
+
+      "helpText": "Base Redshift Processing Units.",
+
+      "validation": {
+        "min": 8,
+
+        "max": 512
+      }
+    },
+
+    {
+      "key": "maxCapacity",
+
+      "tfPath": "max_capacity",
+
+      "label": "Maximum Capacity (RPU)",
+
+      "section": "general",
+
+      "order": 4,
+
+      "helpText": "Maximum Redshift Processing Units.",
+
+      "validation": {
+        "min": 8,
+
+        "max": 512
+      }
+    },
+
+    {
+      "key": "publiclyAccessible",
+
+      "tfPath": "publicly_accessible",
+
+      "label": "Publicly Accessible",
+
+      "section": "network",
+
+      "order": 1,
+
+      "default": false,
+
+      "helpText": "Expose workgroup endpoint publicly."
+    },
+
+    {
+      "key": "enhancedVpcRouting",
+
+      "tfPath": "enhanced_vpc_routing",
+
+      "label": "Enhanced VPC Routing",
+
+      "section": "network",
+
+      "order": 2,
+
+      "default": false,
+
+      "helpText": "Force COPY and UNLOAD traffic through VPC."
+    },
+
+    {
+      "key": "vpcId",
+
+      "label": "VPC",
+
+      "section": "network",
+
+      "order": 3,
+
+      "uiOnly": true,
+
+      "helpText": "Select VPC to filter subnet and security group lists.",
+
+      "dataSource": {
+        "type": "remote",
+
+        "endpoint": "/api/dynamic/aws/vpcs"
+      }
+    },
+
+    {
+      "key": "subnetIds",
+
+      "tfPath": "subnet_ids",
+
+      "label": "Subnet IDs",
+
+      "section": "network",
+
+      "order": 4,
+
+      "helpText": "Select subnets for Redshift workgroup.",
+
+      "dataSource": {
+        "type": "remote",
+
+        "endpoint": "/api/dynamic/aws/subnets",
+
+        "dependsOn": "vpcId",
+
+        "queryParam": "vpcId",
+
+        "multiple": true
+      },
+
+      "validation": {
+        "list": true
+      }
+    },
+
+    {
+      "key": "securityGroupIds",
+
+      "tfPath": "security_group_ids",
+
+      "label": "Security Group IDs",
+
+      "section": "security",
+
+      "order": 1,
+
+      "helpText": "Select security groups for the workgroup.",
+
+      "dataSource": {
+        "type": "remote",
+
+        "endpoint": "/api/dynamic/aws/security-groups",
+
+        "dependsOn": "vpcId",
+
+        "queryParam": "vpcId",
+
+        "multiple": true
+      },
+
+      "validation": {
+        "list": true
+      }
+    },
+
+    {
+      "key": "port",
+
+      "tfPath": "port",
+
+      "label": "Port",
+
+      "section": "advanced",
+
+      "order": 1,
+
+      "default": 5439,
+
+      "helpText": "Port exposed by Redshift endpoint.",
+
+      "validation": {
+        "min": 1,
+
+        "max": 65535
+      }
+    },
+
+    {
+      "key": "trackName",
+
+      "tfPath": "track_name",
+
+      "label": "Track Name",
+
+      "section": "advanced",
+
+      "order": 2,
+
+      "helpText": "Release track name for Redshift updates."
+    },
+
+    {
+      "key": "configParameters",
+
+      "tfPath": "config_parameter",
+
+      "label": "Config Parameters",
+
+      "section": "advanced",
+
+      "order": 3,
+
+      "helpText": "Custom Redshift configuration parameters.",
+
+      "validation": {
+        "map": true
+      }
+    },
+
+    {
+      "key": "tags",
+
+      "tfPath": "tags",
+
+      "label": "Tags",
+
+      "section": "advanced",
+
+      "order": 4,
+
+      "helpText": "Key-value tags applied to the workgroup.",
+
+      "validation": {
+        "map": true
+      }
+    }
+  ]
+}
