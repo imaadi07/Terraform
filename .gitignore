@@ -24,3 +24,7 @@ crash.log
 # OS files
 .DS_Store
 Thumbs.db
+
+Create EC2 Instance/
+EC2/
+GCP/
