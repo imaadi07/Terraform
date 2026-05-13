@@ -1,0 +1,74 @@
+{
+  "providerKey": "gcp",
+  "terraformType": "google_compute_address",
+  "canvasType": "gcp-compute-address",
+  "displayName": "GCP Static IP Address",
+  "icon": "Globe",
+  "color": "#4285F4",
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "name",
+      "tfPath": "name",
+      "label": "Address Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "A unique name for the static IP address."
+    },
+    {
+      "key": "addressType",
+      "tfPath": "address_type",
+      "label": "Address Type",
+      "section": "general",
+      "order": 2,
+      "required": false,
+      "default": "EXTERNAL",
+      "validation": {
+        "enum": ["EXTERNAL", "INTERNAL"]
+      }
+    },
+    {
+      "key": "region",
+      "tfPath": "region",
+      "label": "Region",
+      "section": "general",
+      "order": 3,
+      "required": false,
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/regions"
+      },
+      "helpText": "The GCP region. Leave empty for a global address."
+    },
+    {
+      "key": "networkTier",
+      "tfPath": "network_tier",
+      "label": "Network Tier",
+      "section": "general",
+      "order": 4,
+      "required": false,
+      "default": "PREMIUM",
+      "validation": {
+        "enum": ["PREMIUM", "STANDARD"]
+      }
+    },
+    {
+      "key": "description",
+      "tfPath": "description",
+      "label": "Description",
+      "section": "general",
+      "order": 5,
+      "required": false
+    }
+  ]
+}

@@ -1,32 +1,52 @@
+/* ── Theme tokens ─────────────────────────────────────────── */
 :root {
-  --bg: #f5f7fa;
-  --surface: #ffffff;
-  --surface-2: #f0f2f5;
-  --border: #dde1e7;
-  --border-active: #0969da;
-  --accent: #1a7f37;
-  --accent-bg: #dafbe1;
-  --text: #1a1e26;
-  --text-muted: #5a6270;
-  --text-dim: #8b95a1;
-  --error: #cf222e;
-  --error-dim: #fff0ee;
-  --error-border: #ffcdd2;
-  --warning: #9a6700;
-  --tag-bg: #eef1f5;
-  --section-header: #f8f9fb;
-  --mono: "JetBrains Mono", monospace;
-  --sans: "Syne", sans-serif;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --bg:             #f0f2f6;
+  --bg-nav:         #ffffff;
+  --surface:        #ffffff;
+  --surface-2:      #f6f8fa;
+  --surface-3:      #eef1f5;
+  --border:         #dde1e7;
+  --border-focus:   #0969da;
+  --text:           #1a1e26;
+  --text-muted:     #5a6270;
+  --text-dim:       #8b95a1;
+  --error:          #cf222e;
+  --error-bg:       #fff0ee;
+  --error-border:   #ffcdd2;
+  --accent:         #0969da;
+  --accent-bg:      #dbeafe;
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:      0 4px 16px rgba(0,0,0,0.09), 0 2px 4px rgba(0,0,0,0.04);
+  --radius:         12px;
+  --mono:           "JetBrains Mono", "Fira Code", monospace;
+  --sans:           "Inter", "Syne", system-ui, sans-serif;
+  --nav-h:          64px;
+  --sidebar-w:      260px;
+  --transition:     0.18s ease;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+[data-theme="dark"] {
+  --bg:             #0e1117;
+  --bg-nav:         #161b22;
+  --surface:        #161b22;
+  --surface-2:      #1c2330;
+  --surface-3:      #21262d;
+  --border:         #30363d;
+  --border-focus:   #58a6ff;
+  --text:           #e6edf3;
+  --text-muted:     #8b949e;
+  --text-dim:       #484f58;
+  --error:          #f85149;
+  --error-bg:       #1a0a0a;
+  --error-border:   #6e1c1c;
+  --accent:         #58a6ff;
+  --accent-bg:      #0d2040;
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:      0 4px 16px rgba(0,0,0,0.4);
 }
 
+/* ── Reset ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
 body {
@@ -35,16 +55,22 @@ body {
   font-family: var(--sans);
   min-height: 100vh;
   line-height: 1.6;
+  transition: background var(--transition), color var(--transition);
 }
 
-/* Scrollbar */
+/* ── Scrollbar ────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--surface-2); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+::selection { background: rgba(9,105,218,0.2); }
 
-/* Selection */
-::selection { background: rgba(9,105,218,0.15); }
+/* ── Select option theming ────────────────────────────────── */
+select option { background: var(--surface); color: var(--text); }
 
-/* Native select option colors (light theme) */
-select option { background: #ffffff; color: #1a1e26; }
+/* ── Utility ──────────────────────────────────────────────── */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); border: 0;
+}

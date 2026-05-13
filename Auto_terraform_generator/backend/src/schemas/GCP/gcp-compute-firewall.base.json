@@ -1,0 +1,138 @@
+{
+  "providerKey": "gcp",
+  "terraformType": "google_compute_firewall",
+  "canvasType": "gcp-compute-firewall",
+  "displayName": "GCP Firewall Rule",
+  "icon": "Shield",
+  "color": "#4285F4",
+
+  "dependencies": [
+    {
+      "resourceType": "gcp-compute-network",
+      "terraformType": "google_compute_network",
+      "displayName": "VPC Network",
+      "reason": "A firewall rule must be associated with a VPC network.",
+      "linkField": "network",
+      "tfOutputRef": "google_compute_network.{resourceName}.self_link",
+      "existingTfOutputRef": "data.google_compute_network.{resourceName}.self_link",
+      "required": true,
+      "resolutionStrategy": {
+        "defaultMode": "inline-create",
+        "allowModeSwitch": true
+      }
+    }
+  ],
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    },
+    {
+      "key": "rules",
+      "label": "Allow Rules",
+      "order": 2,
+      "defaultExpanded": true,
+      "collapsible": true
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "name",
+      "tfPath": "name",
+      "label": "Firewall Rule Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "A unique name for the firewall rule."
+    },
+    {
+      "key": "network",
+      "tfPath": "network",
+      "label": "Network Self Link",
+      "section": "general",
+      "order": 2,
+      "required": true,
+      "helpText": "Self link of the VPC network (resolved from dependency)."
+    },
+    {
+      "key": "direction",
+      "tfPath": "direction",
+      "label": "Direction",
+      "section": "general",
+      "order": 3,
+      "required": false,
+      "default": "INGRESS",
+      "validation": {
+        "enum": ["INGRESS", "EGRESS"]
+      }
+    },
+    {
+      "key": "priority",
+      "tfPath": "priority",
+      "label": "Priority",
+      "section": "general",
+      "order": 4,
+      "required": false,
+      "default": 1000,
+      "validation": {
+        "min": 0,
+        "max": 65535
+      },
+      "helpText": "Lower number means higher priority."
+    },
+    {
+      "key": "protocol",
+      "tfPath": "allow.protocol",
+      "label": "Protocol",
+      "section": "rules",
+      "order": 1,
+      "required": true,
+      "default": "tcp",
+      "validation": {
+        "enum": ["tcp", "udp", "icmp", "esp", "ah", "sctp", "all"]
+      }
+    },
+    {
+      "key": "ports",
+      "tfPath": "allow.ports",
+      "label": "Ports",
+      "section": "rules",
+      "order": 2,
+      "required": false,
+      "validation": {
+        "list": true
+      },
+      "helpText": "Comma-separated list of ports or port ranges (e.g. 80, 443, 8080-8090)."
+    },
+    {
+      "key": "sourceRanges",
+      "tfPath": "source_ranges",
+      "label": "Source IP Ranges",
+      "section": "rules",
+      "order": 3,
+      "required": true,
+      "default": "0.0.0.0/0",
+      "validation": {
+        "list": true
+      },
+      "helpText": "Comma-separated source CIDR ranges."
+    },
+    {
+      "key": "targetTags",
+      "tfPath": "target_tags",
+      "label": "Target Tags",
+      "section": "rules",
+      "order": 4,
+      "required": false,
+      "validation": {
+        "list": true
+      },
+      "helpText": "Only instances with these network tags will receive traffic matching this rule."
+    }
+  ]
+}

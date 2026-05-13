@@ -1,0 +1,173 @@
+{
+  "providerKey": "gcp",
+  "terraformType": "google_compute_instance",
+  "canvasType": "gcp-compute-instance",
+  "displayName": "GCP VM Instance",
+  "icon": "Server",
+  "color": "#4285F4",
+
+  "dependencies": [
+    {
+      "resourceType": "gcp-compute-subnetwork",
+      "terraformType": "google_compute_subnetwork",
+      "displayName": "Subnetwork",
+      "reason": "VM instances are placed inside a subnetwork.",
+      "linkField": "subnetwork",
+      "tfOutputRef": "google_compute_subnetwork.{resourceName}.self_link",
+      "existingTfOutputRef": "data.google_compute_subnetwork.{resourceName}.self_link",
+      "required": true,
+      "resolutionStrategy": {
+        "defaultMode": "inline-create",
+        "allowModeSwitch": true
+      }
+    }
+  ],
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    },
+    {
+      "key": "network",
+      "label": "Network",
+      "order": 2,
+      "defaultExpanded": true,
+      "collapsible": true
+    },
+    {
+      "key": "advanced",
+      "label": "Advanced",
+      "order": 3,
+      "defaultExpanded": false,
+      "collapsible": true
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "name",
+      "tfPath": "name",
+      "label": "Instance Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "A unique name for the instance."
+    },
+    {
+      "key": "machineType",
+      "tfPath": "machine_type",
+      "label": "Machine Type",
+      "section": "general",
+      "order": 2,
+      "required": true,
+      "default": "e2-medium",
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/compute/machine-types"
+      },
+      "helpText": "The machine type to create (e.g. e2-medium, n1-standard-1)."
+    },
+    {
+      "key": "zone",
+      "tfPath": "zone",
+      "label": "Zone",
+      "section": "general",
+      "order": 3,
+      "required": true,
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/compute/zones"
+      },
+      "helpText": "The zone the instance should be in."
+    },
+    {
+      "key": "bootDiskImage",
+      "tfPath": "boot_disk.initialize_params.image",
+      "label": "Boot Disk Image",
+      "section": "general",
+      "order": 4,
+      "required": true,
+      "default": "debian-cloud/debian-11",
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/compute/images"
+      },
+      "helpText": "The image to initialize the boot disk from."
+    },
+    {
+      "key": "bootDiskSize",
+      "tfPath": "boot_disk.initialize_params.size",
+      "label": "Boot Disk Size (GB)",
+      "section": "general",
+      "order": 5,
+      "required": false,
+      "default": 20,
+      "validation": {
+        "min": 10,
+        "max": 65536
+      }
+    },
+    {
+      "key": "subnetwork",
+      "tfPath": "network_interface.subnetwork",
+      "label": "Subnetwork Self Link",
+      "section": "network",
+      "order": 1,
+      "required": true,
+      "helpText": "Self link of the subnetwork (resolved from dependency)."
+    },
+    {
+      "key": "accessConfigNatIp",
+      "tfPath": "network_interface.access_config.nat_ip",
+      "label": "External NAT IP",
+      "section": "network",
+      "order": 2,
+      "required": false,
+      "helpText": "Leave blank to assign an ephemeral external IP. Remove block if no external IP is needed."
+    },
+    {
+      "key": "tags",
+      "tfPath": "tags",
+      "label": "Network Tags",
+      "section": "network",
+      "order": 3,
+      "required": false,
+      "validation": {
+        "list": true
+      },
+      "helpText": "Network tags for firewall rules targeting."
+    },
+    {
+      "key": "metadata",
+      "tfPath": "metadata",
+      "label": "Metadata",
+      "section": "advanced",
+      "order": 1,
+      "required": false,
+      "validation": {
+        "map": true
+      },
+      "helpText": "Metadata key/value pairs to make available from within the instance."
+    },
+    {
+      "key": "serviceAccountEmail",
+      "tfPath": "service_account.email",
+      "label": "Service Account Email",
+      "section": "advanced",
+      "order": 2,
+      "required": false,
+      "helpText": "The service account email to attach to the instance."
+    },
+    {
+      "key": "deletionProtection",
+      "tfPath": "deletion_protection",
+      "label": "Deletion Protection",
+      "section": "advanced",
+      "order": 3,
+      "required": false,
+      "default": false,
+      "helpText": "Prevent the instance from being deleted."
+    }
+  ]
+}

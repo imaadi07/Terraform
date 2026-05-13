@@ -1,0 +1,38 @@
+{
+  "resource_type": "google_compute_instance",
+  "display_name": "GCP VM Instance",
+  "provider": "gcp",
+  "category": "compute",
+  "fields": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "machine_type": {
+      "type": "dynamic_select",
+      "required": true,
+      "provider_method": "getMachineTypes"
+    },
+    "zone": {
+      "type": "dynamic_select",
+      "required": true,
+      "provider_method": "getZones"
+    },
+    "image": {
+      "type": "dynamic_select",
+      "required": true,
+      "provider_method": "getImages"
+    },
+    "network": {
+      "type": "dependency",
+      "required": true,
+      "resource_type": "google_compute_network"
+    },
+    "subnetwork": {
+      "type": "dependency",
+      "required": true,
+      "resource_type": "google_compute_subnetwork"
+    }
+  }
+}
+    

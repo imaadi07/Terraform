@@ -1,156 +1,81 @@
-// src/App.jsx
-
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
+import { ThemeProvider } from "./context/ThemeContext";
+import { getProvider } from "./config/providers.jsx";
+
+import Navbar from "./components/Navbar";
+import ProviderPage from "./components/ProviderPage";
+import ResourceListPage from "./components/ResourceListPage";
 import DynamicForm from "./components/DynamicForm";
-import ResourceSelector from "./components/ResourceSelector";
 import DependencySection from "./components/DependencySection";
 
 const API_BASE = "http://localhost:5000/api";
 
+// ─── Helpers (unchanged logic from original) ─────────────────────────────────
+
 function initFormData(schema) {
   const data = {};
-
   for (const field of schema.fields || []) {
-    if (field.default !== undefined) {
-      data[field.key] = field.default;
-    }
+    if (field.default !== undefined) data[field.key] = field.default;
   }
-
   return data;
 }
 
 async function loadDependencyTree(resourceSchema, collected = {}) {
-  const deps = resourceSchema.dependencies || [];
-
-  for (const dep of deps) {
-    if (collected[dep.resourceType]) {
-      continue;
-    }
-
+  for (const dep of resourceSchema.dependencies || []) {
+    if (collected[dep.resourceType]) continue;
     const res = await axios.get(`${API_BASE}/schema/${dep.resourceType}`);
-
     const depSchema = res.data.data;
-
     collected[dep.resourceType] = depSchema;
-
     await loadDependencyTree(depSchema, collected);
   }
-
   return collected;
 }
 
 function buildDefaultModes(schema, depSchemas, modes = {}) {
-  const deps = schema.dependencies || [];
-
-  for (const dep of deps) {
-    if (!modes[dep.resourceType]) {
-      modes[dep.resourceType] =
-        dep.resolutionStrategy?.defaultMode || "inline-create";
-    }
-
-    const childSchema = depSchemas[dep.resourceType];
-
-    if (childSchema) {
-      buildDefaultModes(childSchema, depSchemas, modes);
-    }
+  for (const dep of schema.dependencies || []) {
+    if (!modes[dep.resourceType])
+      modes[dep.resourceType] = dep.resolutionStrategy?.defaultMode || "inline-create";
+    const child = depSchemas[dep.resourceType];
+    if (child) buildDefaultModes(child, depSchemas, modes);
   }
-
   return modes;
 }
 
 function buildDefaultDepFormData(depSchemas) {
   const out = {};
-
-  for (const [resourceType, schema] of Object.entries(depSchemas)) {
-    out[resourceType] = initFormData(schema);
-  }
-
+  for (const [rt, schema] of Object.entries(depSchemas)) out[rt] = initFormData(schema);
   return out;
 }
 
-function buildDependencyPayloadRecursive(
-  schema,
-  depSchemas,
-  depModes,
-  depFormData,
-  output = {},
-) {
-  const deps = schema.dependencies || [];
-
-  for (const dep of deps) {
-    const mode =
-      depModes[dep.resourceType] ||
-      dep.resolutionStrategy?.defaultMode ||
-      "inline-create";
-
-    output[dep.resourceType] = {
-      mode,
-
-      values: depFormData[dep.resourceType] || {},
-    };
-
+function buildDependencyPayload(schema, depSchemas, depModes, depFormData, output = {}) {
+  for (const dep of schema.dependencies || []) {
+    const mode = depModes[dep.resourceType] || dep.resolutionStrategy?.defaultMode || "inline-create";
+    output[dep.resourceType] = { mode, values: depFormData[dep.resourceType] || {} };
     if (mode === "inline-create") {
-      const childSchema = depSchemas[dep.resourceType];
-
-      if (childSchema) {
-        buildDependencyPayloadRecursive(
-          childSchema,
-          depSchemas,
-          depModes,
-          depFormData,
-          output,
-        );
-      }
+      const child = depSchemas[dep.resourceType];
+      if (child) buildDependencyPayload(child, depSchemas, depModes, depFormData, output);
     }
   }
-
   return output;
 }
 
-function RecursiveDependencyRenderer({
-  schema,
-  depSchemas,
-  depModes,
-  depFormData,
-  setDepModes,
-  setDepFormData,
-  level = 0,
-}) {
-  const deps = schema.dependencies || [];
+// ─── Recursive dependency renderer ───────────────────────────────────────────
 
-  if (deps.length === 0) {
-    return null;
-  }
+function RecursiveDeps({ schema, depSchemas, depModes, depFormData, setDepModes, setDepFormData, level = 0 }) {
+  const deps = schema.dependencies || [];
+  if (!deps.length) return null;
 
   return (
-    <div
-      style={{
-        marginLeft: level > 0 ? "24px" : 0,
-
-        marginTop: level > 0 ? "20px" : 0,
-      }}
-    >
+    <div style={{ marginLeft: level > 0 ? 24 : 0, marginTop: level > 0 ? 16 : 0 }}>
       {deps.map((dep) => {
         const depSchema = depSchemas[dep.resourceType];
-
-        if (!depSchema) {
-          return null;
-        }
-
-        const mode =
-          depModes[dep.resourceType] ||
-          dep.resolutionStrategy?.defaultMode ||
-          "inline-create";
+        if (!depSchema) return null;
+        const mode = depModes[dep.resourceType] || dep.resolutionStrategy?.defaultMode || "inline-create";
 
         return (
-          <div
-            key={`${dep.resourceType}-${level}`}
-            style={{
-              marginBottom: "24px",
-            }}
-          >
+          <div key={`${dep.resourceType}-${level}`} style={{ marginBottom: 20 }}>
             <DependencySection
               dep={dep}
               depSchema={depSchema}
@@ -158,56 +83,23 @@ function RecursiveDependencyRenderer({
               depFormData={depFormData}
               setDepFormData={setDepFormData}
               onModeChange={(resourceType, newMode) => {
-                setDepModes((prev) => ({
-                  ...prev,
-
-                  [resourceType]: newMode,
-                }));
-
+                setDepModes((prev) => ({ ...prev, [resourceType]: newMode }));
                 if (newMode === "existing") {
-                  const clearNestedDeps = (schema) => {
-                    const deps = schema.dependencies || [];
-
-                    for (const childDep of deps) {
-                      setDepModes((prev) => {
-                        const next = {
-                          ...prev,
-                        };
-
-                        delete next[childDep.resourceType];
-
-                        return next;
-                      });
-
-                      setDepFormData((prev) => {
-                        const next = {
-                          ...prev,
-                        };
-
-                        delete next[childDep.resourceType];
-
-                        return next;
-                      });
-
-                      const childSchema = depSchemas[childDep.resourceType];
-
-                      if (childSchema) {
-                        clearNestedDeps(childSchema);
-                      }
+                  const clear = (s) => {
+                    for (const d of s.dependencies || []) {
+                      setDepModes((p) => { const n = { ...p }; delete n[d.resourceType]; return n; });
+                      setDepFormData((p) => { const n = { ...p }; delete n[d.resourceType]; return n; });
+                      const cs = depSchemas[d.resourceType];
+                      if (cs) clear(cs);
                     }
                   };
-
-                  const currentSchema = depSchemas[resourceType];
-
-                  if (currentSchema) {
-                    clearNestedDeps(currentSchema);
-                  }
+                  const cs = depSchemas[resourceType];
+                  if (cs) clear(cs);
                 }
               }}
             />
-
             {mode === "inline-create" && (
-              <RecursiveDependencyRenderer
+              <RecursiveDeps
                 schema={depSchema}
                 depSchemas={depSchemas}
                 depModes={depModes}
@@ -224,349 +116,332 @@ function RecursiveDependencyRenderer({
   );
 }
 
-export default function App() {
-  const [resources, setResources] = useState([]);
+// ─── Form + Generate page ─────────────────────────────────────────────────────
 
-  const [selectedResource, setSelectedResource] = useState(null);
-
+function FormPage({ selectedResource, providerKey, onBack }) {
   const [schema, setSchema] = useState(null);
-
   const [formData, setFormData] = useState({});
-
   const [depSchemas, setDepSchemas] = useState({});
-
   const [depFormData, setDepFormData] = useState({});
-
   const [depModes, setDepModes] = useState({});
-
   const [terraformOutput, setTerraformOutput] = useState("");
-
   const [loading, setLoading] = useState(false);
-
+  const [loadingSchema, setLoadingSchema] = useState(true);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const provider = getProvider(providerKey);
 
   useEffect(() => {
-    async function loadResources() {
+    async function load() {
       try {
-        const res = await axios.get(`${API_BASE}/resources`);
-
-        setResources(res.data.data || []);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    loadResources();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedResource) {
-      return;
-    }
-
-    async function loadSchemas() {
-      try {
+        setLoadingSchema(true);
         setError("");
-
         const res = await axios.get(`${API_BASE}/schema/${selectedResource}`);
-
         const primarySchema = res.data.data;
-
         const allDepSchemas = await loadDependencyTree(primarySchema);
-
-        const initialModes = buildDefaultModes(primarySchema, allDepSchemas);
-
-        const initialDepFormData = buildDefaultDepFormData(allDepSchemas);
-
         setSchema(primarySchema);
-
         setFormData(initFormData(primarySchema));
-
         setDepSchemas(allDepSchemas);
-
-        setDepModes(initialModes);
-
-        setDepFormData(initialDepFormData);
-
+        setDepModes(buildDefaultModes(primarySchema, allDepSchemas));
+        setDepFormData(buildDefaultDepFormData(allDepSchemas));
         setTerraformOutput("");
       } catch (err) {
         console.error(err);
-
-        setError("Failed to load schemas");
+        setError("Failed to load schema");
+      } finally {
+        setLoadingSchema(false);
       }
     }
-
-    loadSchemas();
+    load();
   }, [selectedResource]);
 
   const dependencyPayload = useMemo(() => {
-    if (!schema) {
-      return {};
-    }
-
-    return buildDependencyPayloadRecursive(
-      schema,
-      depSchemas,
-      depModes,
-      depFormData,
-    );
+    if (!schema) return {};
+    return buildDependencyPayload(schema, depSchemas, depModes, depFormData);
   }, [schema, depSchemas, depModes, depFormData]);
 
-  async function generateTerraform() {
+  async function generate() {
     try {
       setLoading(true);
-
       setError("");
-
       const hasDeps = (schema?.dependencies || []).length > 0;
-
       if (hasDeps) {
-        const res = await axios.post(
-          `${API_BASE}/terraform/multi/${selectedResource}`,
-          {
-            primary: formData,
-
-            dependencies: dependencyPayload,
-          },
-        );
-
+        const res = await axios.post(`${API_BASE}/terraform/multi/${selectedResource}`, {
+          primary: formData,
+          dependencies: dependencyPayload,
+        });
         setTerraformOutput(res.data.terraform);
       } else {
-        const res = await axios.post(
-          `${API_BASE}/terraform/${selectedResource}`,
-          formData,
-        );
-
+        const res = await axios.post(`${API_BASE}/terraform/${selectedResource}`, formData);
         setTerraformOutput(res.data.terraform);
       }
     } catch (err) {
       console.error(err);
-
       setError(err?.response?.data?.error || "Terraform generation failed");
     } finally {
       setLoading(false);
     }
   }
 
-  const hasDependencies = (schema?.dependencies || []).length > 0;
+  function handleCopy() {
+    navigator.clipboard.writeText(terraformOutput);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (loadingSchema) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)" }}>
+        Loading schema…
+      </div>
+    );
+  }
+
+  if (!schema) return null;
+
+  const hasDependencies = (schema.dependencies || []).length > 0;
 
   return (
-    <div
-      style={{
-        maxWidth: "1400px",
-
-        margin: "0 auto",
-
-        padding: "40px",
-      }}
-    >
-      <h1
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "40px 28px 80px" }}>
+      {/* Back button */}
+      <button
+        onClick={onBack}
         style={{
-          marginBottom: "24px",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 28,
+          padding: "7px 16px",
+          border: "1px solid var(--border)",
+          borderRadius: 8,
+          background: "var(--surface)",
+          color: "var(--text-muted)",
+          cursor: "pointer",
+          fontSize: 13,
+          fontWeight: 600,
         }}
       >
-        Terraform Infrastructure Generator
-      </h1>
+        ← Back to resources
+      </button>
 
-      <h2
+      {/* Title */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        marginBottom: 32,
+        flexWrap: "wrap",
+      }}>
+        <div style={{
+          padding: "4px 14px",
+          borderRadius: 20,
+          background: provider.bgColor,
+          border: `1px solid ${provider.borderColor}`,
+          fontSize: 12,
+          fontWeight: 700,
+          color: provider.color,
+        }}>
+          {provider.shortLabel}
+        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 900, color: "var(--text)", letterSpacing: "-0.5px" }}>
+          {schema.displayName}
+        </h1>
+        <code style={{
+          fontSize: 12,
+          color: "var(--text-dim)",
+          background: "var(--surface-3)",
+          border: "1px solid var(--border)",
+          borderRadius: 6,
+          padding: "3px 10px",
+          fontFamily: "var(--mono)",
+        }}>
+          {schema.terraformType}
+        </code>
+      </div>
+
+      {/* Primary form */}
+      <DynamicForm schema={schema} formData={formData} setFormData={setFormData} />
+
+      {/* Dependencies */}
+      {hasDependencies && (
+        <div style={{ marginTop: 36 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6, color: "var(--text)" }}>
+            Dependencies
+          </h2>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
+            Configure infrastructure dependencies required by this resource.
+          </p>
+          <RecursiveDeps
+            schema={schema}
+            depSchemas={depSchemas}
+            depModes={depModes}
+            depFormData={depFormData}
+            setDepModes={setDepModes}
+            setDepFormData={setDepFormData}
+          />
+        </div>
+      )}
+
+      {/* Generate button */}
+      <button
+        onClick={generate}
+        disabled={loading}
         style={{
-          marginBottom: "16px",
-
-          fontSize: "18px",
+          marginTop: 28,
+          padding: "13px 28px",
+          border: "none",
+          borderRadius: 10,
+          background: loading ? "var(--border)" : provider.color,
+          color: providerKey === "aws" ? "#000" : "#fff",
+          fontWeight: 800,
+          fontSize: 15,
+          cursor: loading ? "not-allowed" : "pointer",
+          transition: "all 0.15s",
+          letterSpacing: "0.01em",
         }}
       >
-        Select Resource
-      </h2>
+        {loading ? "Generating…" : "⚡ Generate Terraform"}
+      </button>
 
-      <ResourceSelector
-        resources={resources}
-        selectedResource={selectedResource}
-        onSelect={setSelectedResource}
-      />
+      {error && (
+        <div style={{
+          marginTop: 16,
+          padding: "12px 16px",
+          background: "var(--error-bg)",
+          border: "1px solid var(--error-border)",
+          borderRadius: 8,
+          color: "var(--error)",
+          fontSize: 14,
+        }}>
+          {error}
+        </div>
+      )}
 
-      {schema && (
-        <>
-          <div
-            style={{
-              marginTop: "40px",
-            }}
-          >
-            {/* Primary Form FIRST */}
-            <h2
-              style={{
-                marginBottom: "16px",
-              }}
-            >
-              {schema.displayName}
+      {/* Output */}
+      {terraformOutput && (
+        <div style={{ marginTop: 48 }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 12,
+            flexWrap: "wrap",
+            gap: 10,
+          }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text)" }}>
+              Generated Terraform
             </h2>
-
-            <DynamicForm
-              schema={schema}
-              formData={formData}
-              setFormData={setFormData}
-            />
-
-            {/* Dependencies BELOW */}
-            {hasDependencies && (
-              <div
-                style={{
-                  marginTop: "40px",
-                }}
-              >
-                <h2
-                  style={{
-                    marginBottom: "8px",
-                  }}
-                >
-                  Dependencies
-                </h2>
-
-                <p
-                  style={{
-                    fontSize: "14px",
-
-                    color: "#57606a",
-
-                    marginBottom: "24px",
-                  }}
-                >
-                  Configure infrastructure dependencies.
-                </p>
-
-                <RecursiveDependencyRenderer
-                  schema={schema}
-                  depSchemas={depSchemas}
-                  depModes={depModes}
-                  depFormData={depFormData}
-                  setDepModes={setDepModes}
-                  setDepFormData={setDepFormData}
-                />
-              </div>
-            )}
-
             <button
-              onClick={generateTerraform}
-              disabled={loading}
+              onClick={handleCopy}
               style={{
-                marginTop: "24px",
-
-                padding: "12px 20px",
-
                 border: "none",
-
-                borderRadius: "8px",
-
-                background: "#FF9900",
-
-                color: "#000",
-
-                fontWeight: "700",
-
+                background: copied ? "#1a7f37" : "#238636",
+                color: "#fff",
+                padding: "8px 16px",
+                borderRadius: 8,
                 cursor: "pointer",
-
-                fontSize: "15px",
+                fontWeight: 700,
+                fontSize: 13,
+                transition: "background 0.2s",
               }}
             >
-              {loading ? "Generating..." : "Generate Terraform"}
+              {copied ? "✓ Copied!" : "Copy"}
             </button>
-
-            {error && (
-              <div
-                style={{
-                  color: "red",
-
-                  marginTop: "16px",
-                }}
-              >
-                {error}
-              </div>
-            )}
           </div>
-
-          {terraformOutput && (
-            <div
-              style={{
-                marginTop: "40px",
-              }}
-            >
-              {/* Header */}
-              <div
-                style={{
-                  display: "flex",
-
-                  alignItems: "center",
-
-                  justifyContent: "space-between",
-
-                  marginBottom: "12px",
-                }}
-              >
-                <h2
-                  style={{
-                    margin: 0,
-                  }}
-                >
-                  Generated Terraform
-                </h2>
-
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(terraformOutput);
-                  }}
-                  style={{
-                    border: "none",
-
-                    background: "#238636",
-
-                    color: "#fff",
-
-                    padding: "8px 14px",
-
-                    borderRadius: "8px",
-
-                    cursor: "pointer",
-
-                    fontWeight: "600",
-
-                    fontSize: "13px",
-                  }}
-                >
-                  Copy Terraform
-                </button>
-              </div>
-
-              {/* Code Block */}
-              <div
-                style={{
-                  position: "relative",
-                }}
-              >
-                <pre
-                  style={{
-                    background: "#0d1117",
-
-                    color: "#c9d1d9",
-
-                    padding: "24px",
-
-                    borderRadius: "10px",
-
-                    overflowX: "auto",
-
-                    fontSize: "13px",
-
-                    lineHeight: "1.6",
-
-                    border: "1px solid #30363d",
-                  }}
-                >
-                  {terraformOutput}
-                </pre>
-              </div>
-            </div>
-          )}
-        </>
+          <pre style={{
+            background: "#0d1117",
+            color: "#c9d1d9",
+            padding: 24,
+            borderRadius: 10,
+            overflowX: "auto",
+            fontSize: 13,
+            lineHeight: 1.7,
+            border: "1px solid #30363d",
+            fontFamily: "var(--mono)",
+          }}>
+            {terraformOutput}
+          </pre>
+        </div>
       )}
     </div>
+  );
+}
+
+// ─── Root App ─────────────────────────────────────────────────────────────────
+
+function AppInner() {
+  const [allResources, setAllResources] = useState([]);
+
+  // view: "home" | { type: "list", provider } | { type: "form", provider, resource }
+  const [view, setView] = useState("home");
+
+  useEffect(() => {
+    axios.get(`${API_BASE}/resources`).then((res) => {
+      setAllResources(res.data.data || []);
+    }).catch(console.error);
+  }, []);
+
+  // Derive unique provider keys from resources, preserving insertion order
+  const providerKeys = useMemo(() => {
+    const seen = new Set();
+    for (const r of allResources) {
+      if (r.provider) seen.add(r.provider);
+    }
+    return [...seen];
+  }, [allResources]);
+
+  // Resources filtered to current provider
+  const providerResources = useMemo(() => {
+    if (!view?.provider) return [];
+    return allResources.filter((r) => r.provider === view.provider);
+  }, [allResources, view]);
+
+  const navView = view === "home"
+    ? "home"
+    : view.type === "list"
+      ? { provider: view.provider }
+      : { provider: view.provider, resource: view.resource };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
+      <Navbar
+        view={navView}
+        onHome={() => setView("home")}
+      />
+
+      {view === "home" && (
+        <ProviderPage
+          providers={providerKeys}
+          onSelect={(key) => setView({ type: "list", provider: key })}
+        />
+      )}
+
+      {view !== "home" && view.type === "list" && (
+        <ResourceListPage
+          providerKey={view.provider}
+          resources={providerResources}
+          onSelect={(resourceId) =>
+            setView({ type: "form", provider: view.provider, resource: resourceId })
+          }
+        />
+      )}
+
+      {view !== "home" && view.type === "form" && (
+        <FormPage
+          selectedResource={view.resource}
+          providerKey={view.provider}
+          onBack={() => setView({ type: "list", provider: view.provider })}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 }

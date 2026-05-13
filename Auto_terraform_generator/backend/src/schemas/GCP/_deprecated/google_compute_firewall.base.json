@@ -1,0 +1,30 @@
+{
+  "resource_type": "google_compute_firewall",
+  "display_name": "GCP Firewall Rule",
+  "provider": "gcp",
+  "category": "security",
+  "fields": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "network": {
+      "type": "dependency",
+      "required": true,
+      "resource_type": "google_compute_network"
+    },
+    "protocol": {
+      "type": "select",
+      "required": true,
+      "options": ["tcp", "udp", "icmp"]
+    },
+    "ports": {
+      "type": "list",
+      "required": false
+    },
+    "source_ranges": {
+      "type": "list",
+      "required": true
+    }
+  }
+}

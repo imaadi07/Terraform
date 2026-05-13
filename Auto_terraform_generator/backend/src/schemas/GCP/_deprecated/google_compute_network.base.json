@@ -1,0 +1,23 @@
+{
+  "resource_type": "google_compute_network",
+  "display_name": "GCP VPC Network",
+  "provider": "gcp",
+  "category": "networking",
+  "fields": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "auto_create_subnetworks": {
+      "type": "boolean",
+      "required": false,
+      "default": false
+    },
+    "routing_mode": {
+      "type": "select",
+      "required": false,
+      "options": ["REGIONAL", "GLOBAL"],
+      "default": "REGIONAL"
+    }
+  }
+}

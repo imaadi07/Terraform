@@ -1,0 +1,53 @@
+{
+  "providerKey": "gcp",
+  "terraformType": "google_compute_network",
+  "canvasType": "gcp-compute-network",
+  "displayName": "GCP VPC Network",
+  "icon": "Network",
+  "color": "#4285F4",
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "name",
+      "tfPath": "name",
+      "label": "Network Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "The name of the VPC network."
+    },
+    {
+      "key": "autoCreateSubnetworks",
+      "tfPath": "auto_create_subnetworks",
+      "label": "Auto Create Subnetworks",
+      "section": "general",
+      "order": 2,
+      "required": false,
+      "default": false,
+      "helpText": "When true, the network is created in auto-subnet mode."
+    },
+    {
+      "key": "routingMode",
+      "tfPath": "routing_mode",
+      "label": "Routing Mode",
+      "section": "general",
+      "order": 3,
+      "required": false,
+      "default": "REGIONAL",
+      "validation": {
+        "enum": ["REGIONAL", "GLOBAL"]
+      },
+      "helpText": "The network-wide routing mode."
+    }
+  ]
+}

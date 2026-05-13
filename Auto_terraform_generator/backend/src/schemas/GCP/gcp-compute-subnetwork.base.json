@@ -1,0 +1,77 @@
+{
+  "providerKey": "gcp",
+  "terraformType": "google_compute_subnetwork",
+  "canvasType": "gcp-compute-subnetwork",
+  "displayName": "GCP Subnetwork",
+  "icon": "Network",
+  "color": "#4285F4",
+
+  "dependencies": [
+    {
+      "resourceType": "gcp-compute-network",
+      "terraformType": "google_compute_network",
+      "displayName": "VPC Network",
+      "reason": "A subnetwork must belong to a VPC network.",
+      "linkField": "network",
+      "tfOutputRef": "google_compute_network.{resourceName}.self_link",
+      "existingTfOutputRef": "data.google_compute_network.{resourceName}.self_link",
+      "required": true,
+      "resolutionStrategy": {
+        "defaultMode": "inline-create",
+        "allowModeSwitch": true
+      }
+    }
+  ],
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "name",
+      "tfPath": "name",
+      "label": "Subnetwork Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "The name of the subnetwork."
+    },
+    {
+      "key": "ipCidrRange",
+      "tfPath": "ip_cidr_range",
+      "label": "IP CIDR Range",
+      "section": "general",
+      "order": 2,
+      "required": true,
+      "helpText": "The IP address range in CIDR notation (e.g. 10.0.0.0/24)."
+    },
+    {
+      "key": "region",
+      "tfPath": "region",
+      "label": "Region",
+      "section": "general",
+      "order": 3,
+      "required": true,
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/regions"
+      },
+      "helpText": "The GCP region for this subnetwork."
+    },
+    {
+      "key": "network",
+      "tfPath": "network",
+      "label": "Network Self Link",
+      "section": "general",
+      "order": 4,
+      "required": true,
+      "helpText": "Self link of the parent network (resolved automatically from dependency)."
+    }
+  ]
+}

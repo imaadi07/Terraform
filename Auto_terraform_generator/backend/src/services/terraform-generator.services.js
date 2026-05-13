@@ -5,6 +5,46 @@ import { inferFieldType, coerceValue, validateRequiredFields, validateConstraint
 import { serializeToHcl } from "./serializer.service.js";
 import { sanitizeTerraformName } from "../utils/naming.util.js";
 
+// Provider header configurations keyed by providerKey.
+const PROVIDER_HEADERS = {
+  aws: [
+    `terraform {`,
+    `  required_providers {`,
+    `    aws = {`,
+    `      source  = "hashicorp/aws"`,
+    `      version = "~> 5.0"`,
+    `    }`,
+    `  }`,
+    `}`,
+    ``,
+    `provider "aws" {`,
+    `  region = "us-east-1"`,
+    `}`,
+    ``,
+  ],
+  gcp: [
+    `terraform {`,
+    `  required_providers {`,
+    `    google = {`,
+    `      source  = "hashicorp/google"`,
+    `      version = "~> 5.0"`,
+    `    }`,
+    `  }`,
+    `}`,
+    ``,
+    `provider "google" {`,
+    `  project = var.gcp_project_id`,
+    `  region  = "us-central1"`,
+    `}`,
+    ``,
+    `variable "gcp_project_id" {`,
+    `  description = "The GCP project ID to deploy resources into."`,
+    `  type        = string`,
+    `}`,
+    ``,
+  ],
+};
+
 export class TerraformGeneratorService {
   /**
    * Build a Terraform config object from schema + user values.
@@ -114,9 +154,10 @@ export class TerraformGeneratorService {
     const tfConfig = this._buildConfig(schema, userValues);
     const resourceName = sanitizeTerraformName(`${schema.canvasType}_resource`);
 
-    return this._buildFile([
-      this._resourceBlock(schema.terraformType, resourceName, tfConfig),
-    ]);
+    return this._buildFile(
+      [this._resourceBlock(schema.terraformType, resourceName, tfConfig)],
+      schema.providerKey
+    );
   }
 
   /**
@@ -156,25 +197,20 @@ export class TerraformGeneratorService {
       this._resourceBlock(primarySchema.terraformType, primaryName, primaryConfig)
     );
 
-    return this._buildFile(blocks);
+    return this._buildFile(blocks, primarySchema.providerKey);
   }
 
-  /** Wrap resource blocks in the standard provider header. */
-  _buildFile(blocks) {
+  /**
+   * Wrap resource blocks in the correct provider header.
+   * Falls back to AWS if providerKey is unknown.
+   *
+   * @param {string[]} blocks      — HCL resource/data blocks
+   * @param {string}   providerKey — "aws" | "gcp" (from schema.providerKey)
+   */
+  _buildFile(blocks, providerKey = "aws") {
+    const header = PROVIDER_HEADERS[providerKey] || PROVIDER_HEADERS["aws"];
     return [
-      `terraform {`,
-      `  required_providers {`,
-      `    aws = {`,
-      `      source  = "hashicorp/aws"`,
-      `      version = "~> 5.0"`,
-      `    }`,
-      `  }`,
-      `}`,
-      ``,
-      `provider "aws" {`,
-      `  region = "us-east-1"`,
-      `}`,
-      ``,
+      ...header,
       ...blocks.map((b) => b + "\n"),
     ].join("\n");
   }

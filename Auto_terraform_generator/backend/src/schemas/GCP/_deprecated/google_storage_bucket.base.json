@@ -1,0 +1,37 @@
+{
+  "resource_type": "google_storage_bucket",
+  "display_name": "GCP Storage Bucket",
+  "provider": "gcp",
+  "category": "storage",
+  "fields": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "location": {
+      "type": "select",
+      "required": true,
+      "options": [
+        "US",
+        "EU",
+        "ASIA"
+      ]
+    },
+    "storage_class": {
+      "type": "select",
+      "required": false,
+      "options": [
+        "STANDARD",
+        "NEARLINE",
+        "COLDLINE",
+        "ARCHIVE"
+      ],
+      "default": "STANDARD"
+    },
+    "force_destroy": {
+      "type": "boolean",
+      "required": false,
+      "default": false
+    }
+  }
+}

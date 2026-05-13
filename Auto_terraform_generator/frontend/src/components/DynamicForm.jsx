@@ -3,6 +3,19 @@ import axios from "axios";
 
 const API_BASE = "http://localhost:5000";
 
+const inputStyle = {
+  width: "100%",
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 6,
+  color: "var(--text)",
+  fontSize: 14,
+  padding: "10px 12px",
+  outline: "none",
+  transition: "border-color 0.15s",
+  fontFamily: "var(--sans)",
+};
+
 function getDataSource(field) {
   return field.dataSource || field.dynamicSource;
 }
@@ -19,24 +32,41 @@ function inferType(field) {
   return "string";
 }
 
-const inputBase = {
-  width: "100%",
-  background: "#fff",
-  border: "1px solid #d0d7de",
-  borderRadius: "6px",
-  color: "#24292f",
-  fontSize: "14px",
-  padding: "10px 12px",
-  outline: "none",
-};
-
 function Toggle({ value, onChange }) {
+  const on = !!value;
   return (
-    <input
-      type="checkbox"
-      checked={!!value}
-      onChange={(e) => onChange(e.target.checked)}
-    />
+    <div
+      onClick={() => onChange(!on)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
+      <div style={{
+        width: 42, height: 24,
+        borderRadius: 12,
+        background: on ? "var(--accent)" : "var(--border)",
+        position: "relative",
+        transition: "background 0.2s",
+        flexShrink: 0,
+      }}>
+        <div style={{
+          position: "absolute",
+          top: 3, left: on ? 21 : 3,
+          width: 18, height: 18,
+          borderRadius: "50%",
+          background: "#fff",
+          transition: "left 0.2s",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+        }} />
+      </div>
+      <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>
+        {on ? "Enabled" : "Disabled"}
+      </span>
+    </div>
   );
 }
 
@@ -51,21 +81,14 @@ function DynamicSelect({ field, value, onChange, formData }) {
   useEffect(() => {
     async function fetchOptions() {
       if (!source?.endpoint) return;
-
       try {
         setLoading(true);
         setError("");
-
         const params = {};
         if (source.queryParam && dependencyValue) {
           params[source.queryParam] = dependencyValue;
         }
-
-        const res = await axios.get(
-          `${API_BASE}${source.endpoint}`,
-          { params }
-        );
-
+        const res = await axios.get(`${API_BASE}${source.endpoint}`, { params });
         setOptions(res.data.data || []);
       } catch (err) {
         console.error(err);
@@ -75,9 +98,8 @@ function DynamicSelect({ field, value, onChange, formData }) {
         setLoading(false);
       }
     }
-
     fetchOptions();
-  }, [source, dependencyValue]);
+  }, [source?.endpoint, dependencyValue]);
 
   if (multiple) {
     return (
@@ -86,33 +108,16 @@ function DynamicSelect({ field, value, onChange, formData }) {
           multiple
           value={Array.isArray(value) ? value : []}
           onChange={(e) =>
-            onChange(
-              Array.from(e.target.selectedOptions, (option) => option.value)
-            )
+            onChange(Array.from(e.target.selectedOptions, (o) => o.value))
           }
-          style={{
-            ...inputBase,
-            minHeight: "120px",
-          }}
+          style={{ ...inputStyle, minHeight: 120 }}
         >
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-
-        {loading && (
-          <div style={{ marginTop: "6px", fontSize: "12px", color: "#57606a" }}>
-            Loading...
-          </div>
-        )}
-
-        {error && (
-          <div style={{ marginTop: "6px", fontSize: "12px", color: "#cf222e" }}>
-            {error}
-          </div>
-        )}
+        {loading && <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-dim)" }}>Loading…</div>}
+        {error && <div style={{ marginTop: 6, fontSize: 12, color: "var(--error)" }}>{error}</div>}
       </>
     );
   }
@@ -122,24 +127,14 @@ function DynamicSelect({ field, value, onChange, formData }) {
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        style={inputBase}
+        style={inputStyle}
       >
-        <option value="">
-          {loading ? "Loading..." : "Select option"}
-        </option>
-
+        <option value="">{loading ? "Loading…" : "Select option"}</option>
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-
-      {error && (
-        <div style={{ marginTop: "6px", fontSize: "12px", color: "#cf222e" }}>
-          {error}
-        </div>
-      )}
+      {error && <div style={{ marginTop: 6, fontSize: 12, color: "var(--error)" }}>{error}</div>}
     </>
   );
 }
@@ -147,37 +142,14 @@ function DynamicSelect({ field, value, onChange, formData }) {
 function FieldInput({ field, value, onChange, formData }) {
   const type = inferType(field);
 
-  if (type === "dynamic") {
-    return (
-      <DynamicSelect
-        field={field}
-        value={value}
-        onChange={onChange}
-        formData={formData}
-      />
-    );
-  }
-
-  if (type === "boolean") {
-    return (
-      <Toggle
-        value={value}
-        onChange={onChange}
-      />
-    );
-  }
+  if (type === "dynamic")   return <DynamicSelect field={field} value={value} onChange={onChange} formData={formData} />;
+  if (type === "boolean")   return <Toggle value={value} onChange={onChange} />;
 
   if (type === "enum") {
     return (
-      <select
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        style={inputBase}
-      >
+      <select value={value ?? ""} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
         {(field.validation?.enum || field.enumValues || []).map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
+          <option key={opt} value={opt}>{opt}</option>
         ))}
       </select>
     );
@@ -191,7 +163,7 @@ function FieldInput({ field, value, onChange, formData }) {
         min={field.validation?.min}
         max={field.validation?.max}
         onChange={(e) => onChange(e.target.value)}
-        style={inputBase}
+        style={inputStyle}
       />
     );
   }
@@ -202,15 +174,10 @@ function FieldInput({ field, value, onChange, formData }) {
         type="text"
         value={Array.isArray(value) ? value.join(", ") : ""}
         onChange={(e) =>
-          onChange(
-            e.target.value
-              .split(",")
-              .map((v) => v.trim())
-              .filter(Boolean)
-          )
+          onChange(e.target.value.split(",").map((v) => v.trim()).filter(Boolean))
         }
-        placeholder="comma separated values"
-        style={inputBase}
+        placeholder="comma-separated values"
+        style={inputStyle}
       />
     );
   }
@@ -218,29 +185,22 @@ function FieldInput({ field, value, onChange, formData }) {
   if (type === "map") {
     const mapValue =
       typeof value === "object"
-        ? Object.entries(value)
-            .map(([k, v]) => `${k}=${v}`)
-            .join("\n")
+        ? Object.entries(value).map(([k, v]) => `${k}=${v}`).join("\n")
         : "";
-
     return (
       <textarea
         rows={4}
         value={mapValue}
         onChange={(e) => {
           const parsed = {};
-
           e.target.value.split("\n").forEach((line) => {
             const [key, ...rest] = line.split("=");
-
             if (!key) return;
-
             parsed[key.trim()] = rest.join("=").trim();
           });
-
           onChange(parsed);
         }}
-        style={inputBase}
+        style={{ ...inputStyle, resize: "vertical" }}
       />
     );
   }
@@ -251,7 +211,7 @@ function FieldInput({ field, value, onChange, formData }) {
         rows={5}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        style={inputBase}
+        style={{ ...inputStyle, resize: "vertical" }}
       />
     );
   }
@@ -261,92 +221,81 @@ function FieldInput({ field, value, onChange, formData }) {
       type="text"
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value)}
-      style={inputBase}
+      style={inputStyle}
     />
   );
 }
 
-function SectionCard({
-  section,
-  fields,
-  formData,
-  setFormData,
-}) {
-  const [expanded, setExpanded] = useState(
-    section.defaultExpanded ?? true
-  );
+function SectionCard({ section, fields, formData, setFormData }) {
+  const [expanded, setExpanded] = useState(section.defaultExpanded ?? true);
 
   function handleChange(key, value) {
-    setFormData((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [key]: value }));
   }
 
   return (
-    <div
-      style={{
-        border: "1px solid #d0d7de",
-        borderRadius: "10px",
-        marginBottom: "20px",
-        overflow: "hidden",
-      }}
-    >
+    <div style={{
+      border: "1px solid var(--border)",
+      borderRadius: 10,
+      marginBottom: 20,
+      overflow: "hidden",
+      background: "var(--surface)",
+    }}>
       <div
-        onClick={() =>
-          section.collapsible &&
-          setExpanded((p) => !p)
-        }
+        onClick={() => section.collapsible && setExpanded((p) => !p)}
         style={{
-          padding: "16px",
-          background: "#f6f8fa",
-          cursor: section.collapsible
-            ? "pointer"
-            : "default",
-          fontWeight: "600",
+          padding: "14px 20px",
+          background: "var(--surface-2)",
+          borderBottom: expanded ? "1px solid var(--border)" : "none",
+          cursor: section.collapsible ? "pointer" : "default",
+          fontWeight: 700,
+          fontSize: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          color: "var(--text)",
+          userSelect: "none",
         }}
       >
         {section.label}
+        {section.collapsible && (
+          <span style={{ color: "var(--text-dim)", fontSize: 18, lineHeight: 1 }}>
+            {expanded ? "−" : "+"}
+          </span>
+        )}
       </div>
 
       {expanded && (
-        <div
-          style={{
-            padding: "20px",
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "20px",
-          }}
-        >
+        <div style={{
+          padding: 20,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 20,
+        }}>
           {fields.map((field) => (
             <div key={field.key}>
-              <div
-                style={{
-                  marginBottom: "8px",
-                  fontWeight: "600",
-                }}
-              >
+              <div style={{
+                marginBottom: 8,
+                fontWeight: 600,
+                fontSize: 13,
+                color: "var(--text)",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}>
                 {field.label}
+                {field.required && (
+                  <span style={{ color: "var(--error)", fontSize: 12 }}>*</span>
+                )}
               </div>
-
               <FieldInput
                 field={field}
                 value={formData[field.key]}
                 formData={formData}
-                onChange={(value) =>
-                  handleChange(field.key, value)
-                }
+                onChange={(value) => handleChange(field.key, value)}
               />
-
               {field.helpText && (
-                <div
-                  style={{
-                    marginTop: "6px",
-                    fontSize: "12px",
-                    color: "#57606a",
-                  }}
-                >
+                <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-dim)" }}>
                   {field.helpText}
                 </div>
               )}
@@ -358,20 +307,12 @@ function SectionCard({
   );
 }
 
-export default function DynamicForm({
-  schema,
-  formData,
-  setFormData,
-}) {
-  const sections = [...schema.sections].sort(
-    (a, b) => a.order - b.order
-  );
-
+export default function DynamicForm({ schema, formData, setFormData }) {
+  const sections = [...schema.sections].sort((a, b) => a.order - b.order);
   const fieldsBySection = {};
-
   for (const section of sections) {
     fieldsBySection[section.key] = schema.fields
-      .filter((field) => field.section === section.key)
+      .filter((f) => f.section === section.key)
       .sort((a, b) => a.order - b.order);
   }
 

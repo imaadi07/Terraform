@@ -1,0 +1,90 @@
+{
+  "providerKey": "gcp",
+  "terraformType": "google_compute_router",
+  "canvasType": "gcp-compute-router",
+  "displayName": "GCP Cloud Router",
+  "icon": "Router",
+  "color": "#4285F4",
+
+  "dependencies": [
+    {
+      "resourceType": "gcp-compute-network",
+      "terraformType": "google_compute_network",
+      "displayName": "VPC Network",
+      "reason": "A Cloud Router must be associated with a VPC network.",
+      "linkField": "network",
+      "tfOutputRef": "google_compute_network.{resourceName}.self_link",
+      "existingTfOutputRef": "data.google_compute_network.{resourceName}.self_link",
+      "required": true,
+      "resolutionStrategy": {
+        "defaultMode": "inline-create",
+        "allowModeSwitch": true
+      }
+    }
+  ],
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "name",
+      "tfPath": "name",
+      "label": "Router Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "A unique name for the Cloud Router."
+    },
+    {
+      "key": "region",
+      "tfPath": "region",
+      "label": "Region",
+      "section": "general",
+      "order": 2,
+      "required": true,
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/regions"
+      },
+      "helpText": "The region this router should live in."
+    },
+    {
+      "key": "network",
+      "tfPath": "network",
+      "label": "Network Self Link",
+      "section": "general",
+      "order": 3,
+      "required": true,
+      "helpText": "Self link of the VPC network (resolved from dependency)."
+    },
+    {
+      "key": "bgpAsn",
+      "tfPath": "bgp.asn",
+      "label": "BGP ASN",
+      "section": "general",
+      "order": 4,
+      "required": false,
+      "default": 64514,
+      "validation": {
+        "min": 64512,
+        "max": 65534
+      },
+      "helpText": "Local BGP Autonomous System Number (required for Cloud VPN / Interconnect)."
+    },
+    {
+      "key": "description",
+      "tfPath": "description",
+      "label": "Description",
+      "section": "general",
+      "order": 5,
+      "required": false
+    }
+  ]
+}

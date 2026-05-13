@@ -1,0 +1,21 @@
+{
+  "resource_type": "google_compute_router",
+  "display_name": "GCP Cloud Router",
+  "provider": "gcp",
+  "category": "networking",
+  "fields": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "region": {
+      "type": "string",
+      "required": true
+    },
+    "network": {
+      "type": "dependency",
+      "required": true,
+      "resource_type": "google_compute_network"
+    }
+  }
+}

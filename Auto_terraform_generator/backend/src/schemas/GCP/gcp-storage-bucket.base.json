@@ -1,0 +1,88 @@
+{
+  "providerKey": "gcp",
+  "terraformType": "google_storage_bucket",
+  "canvasType": "gcp-storage-bucket",
+  "displayName": "GCP Storage Bucket",
+  "icon": "Database",
+  "color": "#4285F4",
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "name",
+      "tfPath": "name",
+      "label": "Bucket Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "A globally unique name for the bucket."
+    },
+    {
+      "key": "location",
+      "tfPath": "location",
+      "label": "Location",
+      "section": "general",
+      "order": 2,
+      "required": true,
+      "default": "US",
+      "validation": {
+        "enum": ["US", "EU", "ASIA"]
+      },
+      "helpText": "The GCS location for the bucket."
+    },
+    {
+      "key": "storageClass",
+      "tfPath": "storage_class",
+      "label": "Storage Class",
+      "section": "general",
+      "order": 3,
+      "required": false,
+      "default": "STANDARD",
+      "validation": {
+        "enum": ["STANDARD", "NEARLINE", "COLDLINE", "ARCHIVE"]
+      },
+      "helpText": "The storage class of the bucket."
+    },
+    {
+      "key": "forceDestroy",
+      "tfPath": "force_destroy",
+      "label": "Force Destroy",
+      "section": "general",
+      "order": 4,
+      "required": false,
+      "default": false,
+      "helpText": "When true, deleting the bucket will delete all contained objects."
+    },
+    {
+      "key": "uniformBucketLevelAccess",
+      "tfPath": "uniform_bucket_level_access",
+      "label": "Uniform Bucket-Level Access",
+      "section": "general",
+      "order": 5,
+      "required": false,
+      "default": true,
+      "helpText": "Enables uniform bucket-level access (recommended)."
+    },
+    {
+      "key": "labels",
+      "tfPath": "labels",
+      "label": "Labels",
+      "section": "general",
+      "order": 6,
+      "required": false,
+      "validation": {
+        "map": true
+      },
+      "helpText": "Labels as key/value pairs."
+    }
+  ]
+}

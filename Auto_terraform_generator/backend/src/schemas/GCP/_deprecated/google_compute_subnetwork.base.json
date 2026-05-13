@@ -1,0 +1,25 @@
+{
+  "resource_type": "google_compute_subnetwork",
+  "display_name": "GCP Subnetwork",
+  "provider": "gcp",
+  "category": "networking",
+  "fields": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "ip_cidr_range": {
+      "type": "string",
+      "required": true
+    },
+    "region": {
+      "type": "string",
+      "required": true
+    },
+    "network": {
+      "type": "dependency",
+      "required": true,
+      "resource_type": "google_compute_network"
+    }
+  }
+}

@@ -1,35 +1,26 @@
 terraform {
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
+    google = {
+      source  = "hashicorp/google"
       version = "~> 5.0"
     }
   }
 }
 
-provider "aws" {
-  region = "us-east-1"
+provider "google" {
+  project = var.gcp_project_id
+  region  = "us-central1"
 }
 
-data "aws_subnet" "subnet_0cadc7a43db6b0691" {
-  id = "subnet-0cadc7a43db6b0691"
+variable "gcp_project_id" {
+  description = "The GCP project ID to deploy resources into."
+  type        = string
 }
 
-resource "aws_instance" "aws_ec2_resource" {
-  instance_type = "t3.micro"
-  ami = "ami-0dd01cd3f25c2d8ae"
-  monitoring = false
-  ebs_optimized = false
-  disable_api_termination = false
-  subnet_id = data.aws_subnet.subnet_0cadc7a43db6b0691.id
-  vpc_security_group_ids = ["sg-0ab2d75f0244b6f84"]
-  associate_public_ip_address = true
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-    encrypted = false
-    delete_on_termination = true
-  }
-  instance_initiated_shutdown_behavior = "stop"
-  tenancy = "default"
+resource "google_storage_bucket" "gcp_storage_bucket_resource" {
+  name = "aditya-storage-8472"
+  location = "ASIA"
+  storage_class = "STANDARD"
+  force_destroy = true
+  uniform_bucket_level_access = true
 }
