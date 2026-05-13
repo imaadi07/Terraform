@@ -42,11 +42,25 @@ export function coerceValue(value, type) {
   }
 }
 
+function matchesCondition(condition, userValues) {
+  if (!condition?.field) return true;
+  return userValues?.[condition.field] === condition.equals;
+}
+
+function shouldValidateField(field, userValues) {
+  if (field.omitWhen && matchesCondition(field.omitWhen, userValues)) {
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * Validate all required fields are present and non-empty.
  */
 export function validateRequiredFields(schema, userValues) {
   for (const field of schema.fields) {
+    if (!shouldValidateField(field, userValues)) continue;
     if (!field.required) continue;
     const value = userValues[field.key];
     if (value === undefined || value === null || value === "") {
@@ -60,6 +74,7 @@ export function validateRequiredFields(schema, userValues) {
  */
 export function validateConstraints(schema, userValues) {
   for (const field of schema.fields) {
+    if (!shouldValidateField(field, userValues)) continue;
     const value = userValues[field.key];
     if (value === undefined || value === null || value === "") continue;
 

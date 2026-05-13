@@ -15,6 +15,9 @@
       "linkField": "network",
       "tfOutputRef": "google_compute_network.{resourceName}.self_link",
       "existingTfOutputRef": "data.google_compute_network.{resourceName}.self_link",
+      "existingDataSource": {
+        "endpoint": "/api/dynamic/gcp/compute/networks"
+      },
       "required": true,
       "resolutionStrategy": {
         "defaultMode": "inline-create",
@@ -71,6 +74,9 @@
       "section": "general",
       "order": 4,
       "required": true,
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/compute/networks"
+      },
       "helpText": "Self link of the parent network (resolved automatically from dependency)."
     }
   ]

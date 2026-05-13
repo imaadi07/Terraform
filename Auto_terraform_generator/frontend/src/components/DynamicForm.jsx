@@ -20,6 +20,19 @@ function getDataSource(field) {
   return field.dataSource || field.dynamicSource;
 }
 
+function matchesCondition(condition, formData) {
+  if (!condition?.field) return true;
+  return formData?.[condition.field] === condition.equals;
+}
+
+function shouldShowField(field, formData) {
+  if (field.visibleWhen && !matchesCondition(field.visibleWhen, formData)) {
+    return false;
+  }
+
+  return true;
+}
+
 function inferType(field) {
   if (getDataSource(field)) return "dynamic";
   if (field.validation?.enum || field.enumValues) return "enum";
@@ -272,7 +285,7 @@ function SectionCard({ section, fields, formData, setFormData }) {
           gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
           gap: 20,
         }}>
-          {fields.map((field) => (
+          {fields.filter((field) => shouldShowField(field, formData)).map((field) => (
             <div key={field.key}>
               <div style={{
                 marginBottom: 8,

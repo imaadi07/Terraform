@@ -46,6 +46,19 @@ const PROVIDER_HEADERS = {
 };
 
 export class TerraformGeneratorService {
+  _matchesCondition(condition, userValues) {
+    if (!condition?.field) return true;
+    return userValues?.[condition.field] === condition.equals;
+  }
+
+  _shouldIncludeField(field, userValues) {
+    if (field.omitWhen && this._matchesCondition(field.omitWhen, userValues)) {
+      return false;
+    }
+
+    return true;
+  }
+
   /**
    * Build a Terraform config object from schema + user values.
    * refMap: optional { fieldKey → tfRef string } — when a field's key
@@ -57,6 +70,7 @@ export class TerraformGeneratorService {
 
     for (const field of schema.fields) {
       if (field.uiOnly || !field.tfPath) continue;
+      if (!this._shouldIncludeField(field, userValues)) continue;
 
       // If this field is satisfied by a Terraform reference, store it
       // under a special marker so the serializer can emit it unquoted.
@@ -89,7 +103,18 @@ export class TerraformGeneratorService {
     let cursor = obj;
 
     for (let i = 0; i < parts.length - 1; i++) {
-      if (!cursor[parts[i]]) cursor[parts[i]] = {};
+      if (cursor[parts[i]] === undefined) {
+        cursor[parts[i]] = {};
+      } else if (
+        typeof cursor[parts[i]] !== "object" ||
+        cursor[parts[i]] === null ||
+        Array.isArray(cursor[parts[i]])
+      ) {
+        throw new Error(
+          `Terraform schema conflict at "${parts.slice(0, i + 1).join(".")}". ` +
+          `A field is trying to use both a scalar value and nested values.`,
+        );
+      }
       cursor = cursor[parts[i]];
     }
 

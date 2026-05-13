@@ -22,6 +22,37 @@ function initFormData(schema) {
   return data;
 }
 
+function matchesCondition(condition, values) {
+  if (!condition?.field) return true;
+  return values?.[condition.field] === condition.equals;
+}
+
+function shouldIncludeField(field, values) {
+  if (field.visibleWhen && !matchesCondition(field.visibleWhen, values)) {
+    return false;
+  }
+
+  if (field.omitWhen && matchesCondition(field.omitWhen, values)) {
+    return false;
+  }
+
+  return true;
+}
+
+function findMissingRequiredField(schema, values) {
+  for (const field of schema.fields || []) {
+    if (!field.required || field.uiOnly) continue;
+    if (!shouldIncludeField(field, values)) continue;
+
+    const value = values?.[field.key];
+    if (value === undefined || value === null || value === "") {
+      return `${field.label} is required.`;
+    }
+  }
+
+  return "";
+}
+
 async function loadDependencyTree(resourceSchema, collected = {}) {
   for (const dep of resourceSchema.dependencies || []) {
     if (collected[dep.resourceType]) continue;
@@ -49,21 +80,119 @@ function buildDefaultDepFormData(depSchemas) {
   return out;
 }
 
-function buildDependencyPayload(schema, depSchemas, depModes, depFormData, output = {}) {
+function flattenDependencyResolution(items = {}, output = {}) {
+  for (const [resourceType, item] of Object.entries(items)) {
+    output[resourceType] = item;
+    flattenDependencyResolution(item.dependencies, output);
+  }
+  return output;
+}
+
+function buildDependencyPayload(
+  schema,
+  depSchemas,
+  depModes,
+  depFormData,
+  dependencyResolution,
+  primaryFormData = {},
+  output = {},
+) {
   for (const dep of schema.dependencies || []) {
-    const mode = depModes[dep.resourceType] || dep.resolutionStrategy?.defaultMode || "inline-create";
-    output[dep.resourceType] = { mode, values: depFormData[dep.resourceType] || {} };
+    const resolution = dependencyResolution[dep.resourceType];
+    const mode = resolution?.status === "resolved"
+      ? "existing"
+      : depModes[dep.resourceType] || dep.resolutionStrategy?.defaultMode || "inline-create";
+    const selectedValue =
+      primaryFormData[dep.linkField] || resolution?.selected?.value || "";
+    const values = {
+      ...(depFormData[dep.resourceType] || {}),
+      ...(mode === "existing" && selectedValue
+        ? { [dep.linkField]: selectedValue }
+        : {}),
+    };
+
+    output[dep.resourceType] = { mode, values };
+
     if (mode === "inline-create") {
       const child = depSchemas[dep.resourceType];
-      if (child) buildDependencyPayload(child, depSchemas, depModes, depFormData, output);
+      if (child) {
+        buildDependencyPayload(
+          child,
+          depSchemas,
+          depModes,
+          depFormData,
+          dependencyResolution,
+          primaryFormData,
+          output,
+        );
+      }
     }
   }
   return output;
 }
 
+function hasMissingDependencies(schema, dependencyResolution) {
+  for (const dep of schema.dependencies || []) {
+    const resolution = dependencyResolution[dep.resourceType];
+    if (!resolution || resolution.status !== "resolved") return true;
+  }
+  return false;
+}
+
+function findMissingDependencyField(
+  schema,
+  depSchemas,
+  depModes,
+  depFormData,
+  dependencyResolution,
+) {
+  for (const dep of schema.dependencies || []) {
+    const resolution = dependencyResolution[dep.resourceType];
+    const mode = resolution?.status === "resolved"
+      ? "existing"
+      : depModes[dep.resourceType] || dep.resolutionStrategy?.defaultMode || "inline-create";
+
+    if (mode !== "inline-create") continue;
+
+    const depSchema = depSchemas[dep.resourceType];
+    if (!depSchema) continue;
+
+    const missingField = findMissingRequiredField(
+      depSchema,
+      depFormData[dep.resourceType] || {},
+    );
+
+    if (missingField) {
+      return `${depSchema.displayName}: ${missingField}`;
+    }
+
+    const nestedMissing = findMissingDependencyField(
+      depSchema,
+      depSchemas,
+      depModes,
+      depFormData,
+      dependencyResolution,
+    );
+
+    if (nestedMissing) return nestedMissing;
+  }
+
+  return "";
+}
+
 // ─── Recursive dependency renderer ───────────────────────────────────────────
 
-function RecursiveDeps({ schema, depSchemas, depModes, depFormData, setDepModes, setDepFormData, level = 0 }) {
+function RecursiveDeps({
+  schema,
+  depSchemas,
+  depModes,
+  depFormData,
+  setDepModes,
+  setDepFormData,
+  dependencyResolution = {},
+  parentFormData = {},
+  level = 0,
+}) {
   const deps = schema.dependencies || [];
   if (!deps.length) return null;
 
@@ -72,6 +201,8 @@ function RecursiveDeps({ schema, depSchemas, depModes, depFormData, setDepModes,
       {deps.map((dep) => {
         const depSchema = depSchemas[dep.resourceType];
         if (!depSchema) return null;
+        const resolution = dependencyResolution[dep.resourceType];
+        if (resolution?.status === "resolved") return null;
         const mode = depModes[dep.resourceType] || dep.resolutionStrategy?.defaultMode || "inline-create";
 
         return (
@@ -82,6 +213,7 @@ function RecursiveDeps({ schema, depSchemas, depModes, depFormData, setDepModes,
               depMode={mode}
               depFormData={depFormData}
               setDepFormData={setDepFormData}
+              parentFormData={parentFormData}
               onModeChange={(resourceType, newMode) => {
                 setDepModes((prev) => ({ ...prev, [resourceType]: newMode }));
                 if (newMode === "existing") {
@@ -106,6 +238,8 @@ function RecursiveDeps({ schema, depSchemas, depModes, depFormData, setDepModes,
                 depFormData={depFormData}
                 setDepModes={setDepModes}
                 setDepFormData={setDepFormData}
+                dependencyResolution={dependencyResolution}
+                parentFormData={depFormData[dep.resourceType] || {}}
                 level={level + 1}
               />
             )}
@@ -124,6 +258,8 @@ function FormPage({ selectedResource, providerKey, onBack }) {
   const [depSchemas, setDepSchemas] = useState({});
   const [depFormData, setDepFormData] = useState({});
   const [depModes, setDepModes] = useState({});
+  const [dependencyResolution, setDependencyResolution] = useState({});
+  const [loadingDependencies, setLoadingDependencies] = useState(false);
   const [terraformOutput, setTerraformOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingSchema, setLoadingSchema] = useState(true);
@@ -140,12 +276,64 @@ function FormPage({ selectedResource, providerKey, onBack }) {
         const res = await axios.get(`${API_BASE}/schema/${selectedResource}`);
         const primarySchema = res.data.data;
         const allDepSchemas = await loadDependencyTree(primarySchema);
+        const defaultFormData = initFormData(primarySchema);
+        const defaultDepFormData = buildDefaultDepFormData(allDepSchemas);
         setSchema(primarySchema);
-        setFormData(initFormData(primarySchema));
+        setFormData(defaultFormData);
         setDepSchemas(allDepSchemas);
         setDepModes(buildDefaultModes(primarySchema, allDepSchemas));
-        setDepFormData(buildDefaultDepFormData(allDepSchemas));
+        setDepFormData(defaultDepFormData);
+        setDependencyResolution({});
+        setLoadingDependencies(false);
         setTerraformOutput("");
+
+        if ((primarySchema.dependencies || []).length > 0) {
+          setLoadingDependencies(true);
+          try {
+            const resolutionRes = await axios.post(
+              `${API_BASE}/dependencies/resolve/${selectedResource}`,
+              { context: defaultFormData },
+            );
+            const resolutionTree = resolutionRes.data.data?.dependencies || {};
+            const flatResolution = flattenDependencyResolution(resolutionTree);
+
+            setDependencyResolution(flatResolution);
+            setDepModes((prev) => {
+              const next = { ...prev };
+              for (const [resourceType, item] of Object.entries(flatResolution)) {
+                next[resourceType] =
+                  item.status === "resolved" ? "existing" : item.mode || next[resourceType];
+              }
+              return next;
+            });
+            setDepFormData((prev) => {
+              const next = { ...prev };
+              for (const [resourceType, item] of Object.entries(flatResolution)) {
+                if (item.status !== "resolved" || !item.linkField || !item.selected?.value) continue;
+                next[resourceType] = {
+                  ...(next[resourceType] || {}),
+                  [item.linkField]: item.selected.value,
+                };
+              }
+              return next;
+            });
+            setFormData((prev) => {
+              const next = { ...prev };
+              for (const dep of primarySchema.dependencies || []) {
+                const item = flatResolution[dep.resourceType];
+                if (item?.status === "resolved" && item.selected?.value) {
+                  next[dep.linkField] = item.selected.value;
+                }
+              }
+              return next;
+            });
+          } catch (err) {
+            console.error(err);
+            setDependencyResolution({});
+          } finally {
+            setLoadingDependencies(false);
+          }
+        }
       } catch (err) {
         console.error(err);
         setError("Failed to load schema");
@@ -158,13 +346,39 @@ function FormPage({ selectedResource, providerKey, onBack }) {
 
   const dependencyPayload = useMemo(() => {
     if (!schema) return {};
-    return buildDependencyPayload(schema, depSchemas, depModes, depFormData);
-  }, [schema, depSchemas, depModes, depFormData]);
+    return buildDependencyPayload(
+      schema,
+      depSchemas,
+      depModes,
+      depFormData,
+      dependencyResolution,
+      formData,
+    );
+  }, [schema, depSchemas, depModes, depFormData, dependencyResolution, formData]);
 
   async function generate() {
     try {
       setLoading(true);
       setError("");
+
+      const missingPrimaryField = findMissingRequiredField(schema, formData);
+      if (missingPrimaryField) {
+        setError(missingPrimaryField);
+        return;
+      }
+
+      const missingDependencyField = findMissingDependencyField(
+        schema,
+        depSchemas,
+        depModes,
+        depFormData,
+        dependencyResolution,
+      );
+      if (missingDependencyField) {
+        setError(missingDependencyField);
+        return;
+      }
+
       const hasDeps = (schema?.dependencies || []).length > 0;
       if (hasDeps) {
         const res = await axios.post(`${API_BASE}/terraform/multi/${selectedResource}`, {
@@ -201,6 +415,8 @@ function FormPage({ selectedResource, providerKey, onBack }) {
   if (!schema) return null;
 
   const hasDependencies = (schema.dependencies || []).length > 0;
+  const hasFallbackDependencies =
+    hasDependencies && !loadingDependencies && hasMissingDependencies(schema, dependencyResolution);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "40px 28px 80px" }}>
@@ -263,14 +479,20 @@ function FormPage({ selectedResource, providerKey, onBack }) {
       {/* Primary form */}
       <DynamicForm schema={schema} formData={formData} setFormData={setFormData} />
 
-      {/* Dependencies */}
-      {hasDependencies && (
+      {loadingDependencies && hasDependencies && (
+        <div style={{ marginTop: 28, color: "var(--text-muted)", fontSize: 13 }}>
+          Checking existing infrastructure...
+        </div>
+      )}
+
+      {/* Fallback dependencies */}
+      {hasFallbackDependencies && (
         <div style={{ marginTop: 36 }}>
           <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6, color: "var(--text)" }}>
             Dependencies
           </h2>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
-            Configure infrastructure dependencies required by this resource.
+            Create only the required infrastructure that was not found in the cloud account.
           </p>
           <RecursiveDeps
             schema={schema}
@@ -279,6 +501,8 @@ function FormPage({ selectedResource, providerKey, onBack }) {
             depFormData={depFormData}
             setDepModes={setDepModes}
             setDepFormData={setDepFormData}
+            dependencyResolution={dependencyResolution}
+            parentFormData={formData}
           />
         </div>
       )}

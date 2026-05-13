@@ -15,6 +15,11 @@
       "linkField": "subnetwork",
       "tfOutputRef": "google_compute_subnetwork.{resourceName}.self_link",
       "existingTfOutputRef": "data.google_compute_subnetwork.{resourceName}.self_link",
+      "existingDataSource": {
+        "endpoint": "/api/dynamic/gcp/compute/subnetworks",
+        "dependsOn": "zone",
+        "queryParam": "zone"
+      },
       "required": false,
       "resolutionStrategy": {
         "defaultMode": "existing",
@@ -198,15 +203,15 @@
       "required": true,
       "dataSource": {
         "endpoint": "/api/dynamic/gcp/compute/subnetworks",
-        "dependsOn": "region",
-        "queryParam": "region"
+        "dependsOn": "zone",
+        "queryParam": "zone"
       },
       "helpText": "Select the subnetwork."
     },
 
     {
       "key": "assignExternalIp",
-      "tfPath": "network_interface.access_config",
+      "uiOnly": true,
       "label": "Assign External IP",
       "section": "network",
       "order": 3,
@@ -221,6 +226,14 @@
       "section": "network",
       "order": 4,
       "required": false,
+      "visibleWhen": {
+        "field": "assignExternalIp",
+        "equals": true
+      },
+      "omitWhen": {
+        "field": "assignExternalIp",
+        "equals": false
+      },
       "default": "PREMIUM",
       "validation": {
         "enum": [

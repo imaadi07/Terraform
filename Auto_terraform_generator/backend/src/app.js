@@ -6,6 +6,7 @@ import terraformRoutes from "./routes/terraform.routes.js";
 import dynamicRoutes from "./routes/dynamic.routes.js";
 import resourceRoutes from "./routes/resource.routes.js";
 import schemaRoutes from "./routes/schema.routes.js";
+import dependencyRoutes from "./routes/dependency.routes.js";
 
 dotenv.config();
 
@@ -22,6 +23,8 @@ app.use(
 app.use("/api/resources", resourceRoutes);
 
 app.use("/api/schema", schemaRoutes);
+
+app.use("/api/dependencies", dependencyRoutes);
 
 app.use("/api/terraform", terraformRoutes);
 
