@@ -1,92 +1,142 @@
 /**
- * GCP Compute provider — fetches dynamic option lists from the
- * Google Cloud REST API using Application Default Credentials (ADC)
- * or the GOOGLE_APPLICATION_CREDENTIALS env variable.
+ * File:
+ * backend/src/providers/gcp/compute.provider.js
  *
- * Prerequisites:
- *   npm install googleapis
- *   Set env var: GOOGLE_CLOUD_PROJECT=<your-project-id>
- *   Authenticate: gcloud auth application-default login
- *                 OR set GOOGLE_APPLICATION_CREDENTIALS to a service-account key file.
+ * GCP Compute provider — dynamic option providers
+ * for GCP VM infrastructure resources.
  */
 
 import { google } from "googleapis";
 
-const PROJECT = process.env.GOOGLE_CLOUD_PROJECT;
+/**
+ * Read project dynamically from env.
+ */
+function getProject() {
+  return process.env.GOOGLE_CLOUD_PROJECT;
+}
 
 /**
- * Returns an authenticated Google API auth client.
- * Uses ADC (Application Default Credentials) automatically.
+ * Auth client using ADC.
  */
 async function getAuthClient() {
   const auth = new google.auth.GoogleAuth({
     scopes: ["https://www.googleapis.com/auth/cloud-platform"],
   });
+
   return auth.getClient();
 }
 
 /**
  * GET /api/dynamic/gcp/compute/zones
- * Returns all available GCP zones for the project.
  */
 export async function getZones() {
   const auth = await getAuthClient();
-  const compute = google.compute({ version: "v1", auth });
 
-  const response = await compute.zones.list({ project: PROJECT });
-  const zones = response.data.items || [];
+  const compute = google.compute({
+    version: "v1",
+    auth,
+  });
 
-  return zones
-    .filter((z) => z.status === "UP")
-    .map((z) => ({ label: z.name, value: z.name }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  try {
+    const response = await compute.zones.list({
+      project: getProject(),
+    });
+
+    const zones = response.data.items || [];
+
+    return zones
+      .filter((z) => z.status === "UP")
+      .map((z) => ({
+        label: z.name,
+        value: z.name,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  } catch (error) {
+    console.error("Failed to fetch zones:", error.message);
+    return [];
+  }
 }
 
 /**
- * GET /api/dynamic/gcp/regions
- * Returns all available GCP regions for the project.
+ * GET /api/dynamic/gcp/compute/regions
  */
 export async function getRegions() {
   const auth = await getAuthClient();
-  const compute = google.compute({ version: "v1", auth });
 
-  const response = await compute.regions.list({ project: PROJECT });
-  const regions = response.data.items || [];
+  const compute = google.compute({
+    version: "v1",
+    auth,
+  });
 
-  return regions
-    .filter((r) => r.status === "UP")
-    .map((r) => ({ label: r.name, value: r.name }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  try {
+    const response = await compute.regions.list({
+      project: getProject(),
+    });
+
+    const regions = response.data.items || [];
+
+    return regions
+      .filter((r) => r.status === "UP")
+      .map((r) => ({
+        label: r.name,
+        value: r.name,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  } catch (error) {
+    console.error("Failed to fetch regions:", error.message);
+    return [];
+  }
 }
 
 /**
  * GET /api/dynamic/gcp/compute/machine-types
- * Returns machine types for a given zone (defaults to us-central1-a).
+ *
+ * Accepts zone.
  */
 export async function getMachineTypes(zone = "us-central1-a") {
   const auth = await getAuthClient();
-  const compute = google.compute({ version: "v1", auth });
 
-  const response = await compute.machineTypes.list({ project: PROJECT, zone });
-  const types = response.data.items || [];
+  const compute = google.compute({
+    version: "v1",
+    auth,
+  });
 
-  return types
-    .map((t) => ({ label: `${t.name} (${t.description})`, value: t.name }))
-    .sort((a, b) => a.value.localeCompare(b.value));
+  try {
+    const response = await compute.machineTypes.list({
+      project: getProject(),
+      zone,
+    });
+
+    const types = response.data.items || [];
+
+    return types
+      .map((t) => ({
+        label: `${t.name} (${t.guestCpus} vCPU, ${Math.round(
+          t.memoryMb / 1024,
+        )} GB RAM)`,
+        value: t.name,
+      }))
+      .sort((a, b) => a.value.localeCompare(b.value));
+  } catch (error) {
+    console.error("Failed to fetch machine types:", error.message);
+    return [];
+  }
 }
 
 /**
  * GET /api/dynamic/gcp/compute/images
- * Returns popular public images from well-known GCP image projects.
  */
 export async function getImages() {
   const auth = await getAuthClient();
-  const compute = google.compute({ version: "v1", auth });
 
-  // Fetch images from common public image families.
+  const compute = google.compute({
+    version: "v1",
+    auth,
+  });
+
   const imageProjects = [
-    "debian-cloud",
     "ubuntu-os-cloud",
+    "debian-cloud",
     "centos-cloud",
     "rhel-cloud",
     "windows-cloud",
@@ -98,67 +148,113 @@ export async function getImages() {
     try {
       const response = await compute.images.list({
         project: imageProject,
-        filter: "deprecated.replacement=null", // only non-deprecated images
-        maxResults: 10,
-        orderBy: "creationTimestamp desc",
+        maxResults: 15,
       });
 
       const images = response.data.items || [];
+
       results.push(
         ...images.map((img) => ({
           label: `${img.name} (${imageProject})`,
           value: `${imageProject}/${img.family || img.name}`,
-        }))
+        })),
       );
-    } catch {
-      // Skip projects where we lack permission — continue gracefully.
+    } catch (error) {
+      console.error(
+        `Unable to fetch images from ${imageProject}:`,
+        error.message,
+      );
     }
   }
 
-  return results;
+  return results.sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /**
  * GET /api/dynamic/gcp/compute/networks
- * Returns VPC networks in the project.
  */
 export async function getNetworks() {
   const auth = await getAuthClient();
-  const compute = google.compute({ version: "v1", auth });
 
-  const response = await compute.networks.list({ project: PROJECT });
-  const networks = response.data.items || [];
+  const compute = google.compute({
+    version: "v1",
+    auth,
+  });
 
-  return networks.map((n) => ({
-    label: n.name,
-    value: n.selfLink,
-  }));
+  try {
+    const response = await compute.networks.list({
+      project: getProject(),
+    });
+
+    const networks = response.data.items || [];
+
+    return networks.map((n) => ({
+      label: n.name,
+      value: n.selfLink,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch networks:", error.message);
+    return [];
+  }
 }
 
 /**
  * GET /api/dynamic/gcp/compute/subnetworks
- * Returns subnetworks, optionally filtered by region.
+ *
+ * Accepts zone and derives region automatically.
+ *
+ * Example:
+ * us-central1-a -> us-central1
  */
-export async function getSubnetworks(region) {
+export async function getSubnetworks(zone) {
   const auth = await getAuthClient();
-  const compute = google.compute({ version: "v1", auth });
+
+  const compute = google.compute({
+    version: "v1",
+    auth,
+  });
 
   let subnets = [];
 
-  if (region) {
-    const response = await compute.subnetworks.list({ project: PROJECT, region });
-    subnets = response.data.items || [];
-  } else {
-    // Aggregate across all regions.
-    const response = await compute.subnetworks.aggregatedList({ project: PROJECT });
-    const items = response.data.items || {};
-    for (const regionData of Object.values(items)) {
-      if (regionData.subnetworks) subnets.push(...regionData.subnetworks);
+  // Convert zone -> region
+  let region = null;
+
+  if (zone) {
+    const parts = zone.split("-");
+
+    if (parts.length >= 2) {
+      region = `${parts[0]}-${parts[1]}`;
     }
   }
 
-  return subnets.map((s) => ({
-    label: `${s.name} (${s.region?.split("/").pop()})`,
-    value: s.selfLink,
-  }));
+  try {
+    if (region) {
+      const response = await compute.subnetworks.list({
+        project: getProject(),
+        region,
+      });
+
+      subnets = response.data.items || [];
+    } else {
+      const response = await compute.subnetworks.aggregatedList({
+        project: getProject(),
+      });
+
+      const items = response.data.items || {};
+
+      for (const regionData of Object.values(items)) {
+        if (regionData.subnetworks) {
+          subnets.push(...regionData.subnetworks);
+        }
+      }
+    }
+
+    return subnets.map((s) => ({
+      label: `${s.name} (${s.region?.split("/").pop()})`,
+      value: s.selfLink,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch subnetworks:", error.message);
+    return [];
+  }
 }

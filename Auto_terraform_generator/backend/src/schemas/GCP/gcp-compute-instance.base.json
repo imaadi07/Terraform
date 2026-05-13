@@ -15,9 +15,9 @@
       "linkField": "subnetwork",
       "tfOutputRef": "google_compute_subnetwork.{resourceName}.self_link",
       "existingTfOutputRef": "data.google_compute_subnetwork.{resourceName}.self_link",
-      "required": true,
+      "required": false,
       "resolutionStrategy": {
-        "defaultMode": "inline-create",
+        "defaultMode": "existing",
         "allowModeSwitch": true
       }
     }
@@ -26,22 +26,36 @@
   "sections": [
     {
       "key": "general",
-      "label": "General",
+      "label": "Machine Configuration",
       "order": 1,
       "defaultExpanded": true,
       "collapsible": false
     },
     {
-      "key": "network",
-      "label": "Network",
+      "key": "storage",
+      "label": "OS and Storage",
       "order": 2,
       "defaultExpanded": true,
       "collapsible": true
     },
     {
+      "key": "network",
+      "label": "Networking",
+      "order": 3,
+      "defaultExpanded": true,
+      "collapsible": true
+    },
+    {
+      "key": "security",
+      "label": "Security",
+      "order": 4,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
       "key": "advanced",
       "label": "Advanced",
-      "order": 3,
+      "order": 5,
       "defaultExpanded": false,
       "collapsible": true
     }
@@ -55,8 +69,9 @@
       "section": "general",
       "order": 1,
       "required": true,
-      "helpText": "A unique name for the instance."
+      "helpText": "Unique VM instance name."
     },
+
     {
       "key": "machineType",
       "tfPath": "machine_type",
@@ -66,10 +81,13 @@
       "required": true,
       "default": "e2-medium",
       "dataSource": {
-        "endpoint": "/api/dynamic/gcp/compute/machine-types"
+        "endpoint": "/api/dynamic/gcp/compute/machine-types",
+        "dependsOn": "zone",
+        "queryParam": "zone"
       },
-      "helpText": "The machine type to create (e.g. e2-medium, n1-standard-1)."
+      "helpText": "Machine type such as e2-medium or n2-standard-2."
     },
+
     {
       "key": "zone",
       "tfPath": "zone",
@@ -80,94 +98,248 @@
       "dataSource": {
         "endpoint": "/api/dynamic/gcp/compute/zones"
       },
-      "helpText": "The zone the instance should be in."
+      "helpText": "Zone where the VM will run."
     },
+
+    {
+      "key": "canIpForward",
+      "tfPath": "can_ip_forward",
+      "label": "Enable IP Forwarding",
+      "section": "general",
+      "order": 4,
+      "required": false,
+      "default": false
+    },
+
+    {
+      "key": "allowStoppingForUpdate",
+      "tfPath": "allow_stopping_for_update",
+      "label": "Allow Stopping For Update",
+      "section": "general",
+      "order": 5,
+      "required": false,
+      "default": true
+    },
+
     {
       "key": "bootDiskImage",
       "tfPath": "boot_disk.initialize_params.image",
       "label": "Boot Disk Image",
-      "section": "general",
-      "order": 4,
+      "section": "storage",
+      "order": 1,
       "required": true,
-      "default": "debian-cloud/debian-11",
       "dataSource": {
         "endpoint": "/api/dynamic/gcp/compute/images"
       },
-      "helpText": "The image to initialize the boot disk from."
+      "helpText": "Operating system image."
     },
+
     {
       "key": "bootDiskSize",
       "tfPath": "boot_disk.initialize_params.size",
       "label": "Boot Disk Size (GB)",
-      "section": "general",
-      "order": 5,
-      "required": false,
+      "section": "storage",
+      "order": 2,
+      "required": true,
       "default": 20,
       "validation": {
         "min": 10,
         "max": 65536
       }
     },
+
     {
-      "key": "subnetwork",
-      "tfPath": "network_interface.subnetwork",
-      "label": "Subnetwork Self Link",
+      "key": "bootDiskType",
+      "tfPath": "boot_disk.initialize_params.type",
+      "label": "Boot Disk Type",
+      "section": "storage",
+      "order": 3,
+      "required": true,
+      "default": "pd-balanced",
+      "validation": {
+        "enum": [
+          "pd-standard",
+          "pd-balanced",
+          "pd-ssd",
+          "pd-extreme"
+        ]
+      }
+    },
+
+    {
+      "key": "autoDeleteBootDisk",
+      "tfPath": "boot_disk.auto_delete",
+      "label": "Auto Delete Boot Disk",
+      "section": "storage",
+      "order": 4,
+      "required": false,
+      "default": true
+    },
+
+    {
+      "key": "network",
+      "tfPath": "network_interface.network",
+      "label": "VPC Network",
       "section": "network",
       "order": 1,
       "required": true,
-      "helpText": "Self link of the subnetwork (resolved from dependency)."
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/compute/networks"
+      },
+      "helpText": "Select the VPC network."
     },
+
     {
-      "key": "accessConfigNatIp",
-      "tfPath": "network_interface.access_config.nat_ip",
-      "label": "External NAT IP",
+      "key": "subnetwork",
+      "tfPath": "network_interface.subnetwork",
+      "label": "Subnetwork",
       "section": "network",
       "order": 2,
-      "required": false,
-      "helpText": "Leave blank to assign an ephemeral external IP. Remove block if no external IP is needed."
+      "required": true,
+      "dataSource": {
+        "endpoint": "/api/dynamic/gcp/compute/subnetworks",
+        "dependsOn": "region",
+        "queryParam": "region"
+      },
+      "helpText": "Select the subnetwork."
     },
+
+    {
+      "key": "assignExternalIp",
+      "tfPath": "network_interface.access_config",
+      "label": "Assign External IP",
+      "section": "network",
+      "order": 3,
+      "required": false,
+      "default": true
+    },
+
+    {
+      "key": "networkTier",
+      "tfPath": "network_interface.access_config.network_tier",
+      "label": "Network Tier",
+      "section": "network",
+      "order": 4,
+      "required": false,
+      "default": "PREMIUM",
+      "validation": {
+        "enum": [
+          "PREMIUM",
+          "STANDARD"
+        ]
+      }
+    },
+
     {
       "key": "tags",
       "tfPath": "tags",
       "label": "Network Tags",
       "section": "network",
-      "order": 3,
+      "order": 5,
       "required": false,
       "validation": {
         "list": true
-      },
-      "helpText": "Network tags for firewall rules targeting."
+      }
     },
+
+    {
+      "key": "enableSecureBoot",
+      "tfPath": "shielded_instance_config.enable_secure_boot",
+      "label": "Enable Secure Boot",
+      "section": "security",
+      "order": 1,
+      "required": false,
+      "default": false
+    },
+
+    {
+      "key": "enableVtpm",
+      "tfPath": "shielded_instance_config.enable_vtpm",
+      "label": "Enable vTPM",
+      "section": "security",
+      "order": 2,
+      "required": false,
+      "default": true
+    },
+
+    {
+      "key": "enableIntegrityMonitoring",
+      "tfPath": "shielded_instance_config.enable_integrity_monitoring",
+      "label": "Enable Integrity Monitoring",
+      "section": "security",
+      "order": 3,
+      "required": false,
+      "default": true
+    },
+
+    {
+      "key": "metadataStartupScript",
+      "tfPath": "metadata.startup-script",
+      "label": "Startup Script",
+      "section": "advanced",
+      "order": 1,
+      "required": false,
+      "validation": {
+        "multiline": true
+      }
+    },
+
     {
       "key": "metadata",
       "tfPath": "metadata",
       "label": "Metadata",
       "section": "advanced",
-      "order": 1,
+      "order": 2,
       "required": false,
       "validation": {
         "map": true
-      },
-      "helpText": "Metadata key/value pairs to make available from within the instance."
+      }
     },
+
     {
       "key": "serviceAccountEmail",
       "tfPath": "service_account.email",
       "label": "Service Account Email",
       "section": "advanced",
-      "order": 2,
-      "required": false,
-      "helpText": "The service account email to attach to the instance."
+      "order": 3,
+      "required": false
     },
+
+    {
+      "key": "serviceAccountScopes",
+      "tfPath": "service_account.scopes",
+      "label": "Service Account Scopes",
+      "section": "advanced",
+      "order": 4,
+      "required": false,
+      "validation": {
+        "list": true
+      },
+      "default": [
+        "https://www.googleapis.com/auth/cloud-platform"
+      ]
+    },
+
+    {
+      "key": "labels",
+      "tfPath": "labels",
+      "label": "Labels",
+      "section": "advanced",
+      "order": 5,
+      "required": false,
+      "validation": {
+        "map": true
+      }
+    },
+
     {
       "key": "deletionProtection",
       "tfPath": "deletion_protection",
       "label": "Deletion Protection",
       "section": "advanced",
-      "order": 3,
+      "order": 6,
       "required": false,
-      "default": false,
-      "helpText": "Prevent the instance from being deleted."
+      "default": false
     }
   ]
 }
