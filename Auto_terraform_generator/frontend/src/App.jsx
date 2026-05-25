@@ -210,6 +210,7 @@ function RecursiveDeps({
             <DependencySection
               dep={dep}
               depSchema={depSchema}
+              parentSchema={schema}
               depMode={mode}
               depFormData={depFormData}
               setDepFormData={setDepFormData}

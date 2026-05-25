@@ -7,6 +7,7 @@ const API_BASE = "http://localhost:5000";
 export default function DependencySection({
   dep,
   depSchema,
+  parentSchema = null,
   depMode,
   depFormData,
   onModeChange,
@@ -171,6 +172,7 @@ export default function DependencySection({
           {mode === "existing" ? (
             <ExistingModeInput
               dep={dep}
+              parentSchema={parentSchema}
               currentValues={currentValues}
               onFieldChange={handleFieldChange}
               accentColor={accentColor}
@@ -201,6 +203,7 @@ export default function DependencySection({
 
 function ExistingModeInput({
   dep,
+  parentSchema = null,
   currentValues,
   onFieldChange,
   accentColor,
@@ -209,7 +212,11 @@ function ExistingModeInput({
   const idFieldKey = dep.linkField;
 
   // Universal source support
-  const source = dep.existingResourceDataSource || dep.existingDataSource;
+  const source =
+    dep.existingResourceDataSource ||
+    dep.existingDataSource ||
+    parentSchema?.fields?.find((field) => field.key === dep.linkField)?.dataSource ||
+    parentSchema?.fields?.find((field) => field.key === dep.linkField)?.dynamicSource;
 
   const label = dep.existingLabel || dep.displayName || dep.linkField;
 
@@ -328,6 +335,18 @@ function ExistingModeInput({
           }}
         >
           {error}
+        </div>
+      )}
+
+      {!loading && !error && options.length === 0 && (
+        <div
+          style={{
+            marginTop: 8,
+            color: "var(--text-dim)",
+            fontSize: 12,
+          }}
+        >
+          No existing resources found for this dependency.
         </div>
       )}
     </div>

@@ -186,11 +186,12 @@ router.get("/gcp/compute/networks", async (_req, res, next) => {
 
 /**
  * GET /api/dynamic/gcp/compute/subnetworks?region=us-central1
- * Lists subnetworks. Pass ?region= to filter by region.
+ * GET /api/dynamic/gcp/compute/subnetworks?zone=us-central1-a
+ * Lists subnetworks. Pass ?region= or ?zone= to filter.
  */
 router.get("/gcp/compute/subnetworks", async (req, res, next) => {
   try {
-    const data = await getSubnetworks(req.query.region);
+    const data = await getSubnetworks(req.query.zone || req.query.region);
     return res.json({ success: true, data });
   } catch (error) {
     next(error);

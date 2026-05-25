@@ -1,0 +1,712 @@
+{
+  "$schema": "../../../ui-manifest.schema.json",
+  "providerKey": "aws",
+  "terraformType": "aws_eks_cluster",
+  "canvasType": "aws-eks",
+  "displayName": "AWS EKS Cluster",
+  "icon": "Server",
+  "color": "#FF9900",
+  "compatibleWith": ">=5.31.0 <7.0.0",
+
+  "dependencies": [
+    {
+      "resourceType": "aws-vpc",
+      "terraformType": "aws_vpc",
+      "displayName": "VPC",
+      "reason": "EKS cluster control plane ENIs are provisioned in a VPC.",
+      "linkField": "vpcId",
+      "tfOutputRef": "aws_vpc.{resourceName}.id",
+      "required": true,
+      "resolutionStrategy": {
+        "defaultMode": "existing",
+        "allowModeSwitch": true
+      },
+      "existingTfOutputRef": "data.aws_vpc.{resourceName}.id",
+      "existingDataSource": {
+        "endpoint": "/api/aws/ec2/vpcs"
+      },
+      "existingLabel": "VPC ID"
+    },
+    {
+      "resourceType": "aws-subnet",
+      "terraformType": "aws_subnet",
+      "displayName": "Subnets",
+      "reason": "EKS requires at least 2 subnets in different AZs.",
+      "linkField": "subnetIds",
+      "tfOutputRef": "aws_subnet.{resourceName}.id",
+      "required": true,
+      "isMulti": true,
+      "minCount": 2,
+      "resolutionStrategy": {
+        "defaultMode": "existing",
+        "allowModeSwitch": true
+      },
+      "existingTfOutputRef": "data.aws_subnet.{resourceName}.id",
+      "existingDataSource": {
+        "endpoint": "/api/aws/ec2/subnets",
+        "dependsOn": ["vpcId"]
+      },
+      "existingLabel": "Subnet IDs"
+    }
+  ],
+
+  "sections": [
+    {
+      "key": "general",
+      "label": "General",
+      "order": 1,
+      "defaultExpanded": true,
+      "collapsible": false
+    },
+    {
+      "key": "network",
+      "label": "Network",
+      "order": 2,
+      "defaultExpanded": true,
+      "collapsible": true
+    },
+    {
+      "key": "security",
+      "label": "Security & IAM",
+      "order": 3,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "access",
+      "label": "Access & Authentication",
+      "order": 4,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "autoMode",
+      "label": "EKS Auto Mode",
+      "order": 5,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "networking",
+      "label": "Kubernetes Networking",
+      "order": 6,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "logging",
+      "label": "Logging & Observability",
+      "order": 7,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "upgrades",
+      "label": "Upgrades & Availability",
+      "order": 8,
+      "defaultExpanded": false,
+      "collapsible": true
+    },
+    {
+      "key": "advanced",
+      "label": "Advanced",
+      "order": 9,
+      "defaultExpanded": false,
+      "collapsible": true
+    }
+  ],
+
+  "fields": [
+    {
+      "key": "name",
+      "tfPath": "name",
+      "label": "Cluster Name",
+      "section": "general",
+      "order": 1,
+      "required": true,
+      "helpText": "Unique name for the EKS cluster within your AWS account and region.",
+      "validation": {
+        "minLength": 1,
+        "maxLength": 100,
+        "regex": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+      }
+    },
+    {
+      "key": "version",
+      "tfPath": "version",
+      "label": "Kubernetes Version",
+      "section": "general",
+      "order": 2,
+      "required": true,
+      "default": "1.33",
+      "dataSource": {
+        "endpoint": "/api/aws/eks/versions"
+      },
+      "helpText": "Kubernetes version for the cluster control plane.",
+      "warningText": "Upgrading the version triggers a control-plane update."
+    },
+    {
+      "key": "bootstrapSelfManagedAddons",
+      "tfPath": "bootstrap_self_managed_addons",
+      "label": "Bootstrap Self-Managed Add-ons",
+      "section": "general",
+      "order": 3,
+      "required": false,
+      "default": true,
+      "helpText": "If true, EKS installs kube-proxy, VPC CNI, and CoreDNS."
+    },
+
+    {
+      "key": "roleArn",
+      "tfPath": "role_arn",
+      "label": "EKS Cluster IAM Role ARN",
+      "section": "security",
+      "order": 1,
+      "required": true,
+      "dataSource": {
+        "endpoint": "/api/aws/iam/roles",
+        "filters": {
+          "service": "eks.amazonaws.com"
+        }
+      },
+      "helpText": "IAM role that EKS assumes to manage cluster resources.",
+      "validation": {
+        "regex": "^arn:aws:iam::\\d{12}:role/[\\w+=,.@/-]+$"
+      }
+    },
+    {
+      "key": "encryptionConfigKeyArn",
+      "tfPath": "encryption_config.provider.key_arn",
+      "label": "KMS Key ARN for Secret Encryption",
+      "section": "security",
+      "order": 2,
+      "required": false,
+      "dataSource": {
+        "endpoint": "/api/aws/kms/keys",
+        "filters": {
+          "type": "SYMMETRIC_DEFAULT"
+        }
+      },
+      "helpText": "KMS symmetric key for envelope encryption of Kubernetes secrets.",
+      "validation": {
+        "regex": "^arn:aws:kms:[a-z0-9-]+:\\d{12}:key/[a-f0-9-]+$"
+      }
+    },
+    {
+      "key": "encryptionConfigResources",
+      "tfPath": "encryption_config.resources",
+      "label": "Resources to Encrypt",
+      "section": "security",
+      "order": 3,
+      "required": false,
+      "default": ["secrets"],
+      "helpText": "Kubernetes resource types to encrypt.",
+      "validation": {
+        "enum": ["secrets"],
+        "selectionMode": "multi"
+      }
+    },
+
+    {
+      "key": "vpcId",
+      "tfPath": "vpc_config.vpc_id",
+      "label": "VPC ID",
+      "section": "network",
+      "order": 1,
+      "required": true,
+      "dataSource": {
+        "endpoint": "/api/aws/ec2/vpcs"
+      },
+      "helpText": "VPC where the EKS control plane ENIs will be provisioned."
+    },
+    {
+      "key": "subnetIds",
+      "tfPath": "vpc_config.subnet_ids",
+      "label": "Subnet IDs",
+      "section": "network",
+      "order": 2,
+      "required": true,
+      "dataSource": {
+        "endpoint": "/api/aws/ec2/subnets",
+        "dependsOn": ["vpcId"]
+      },
+      "helpText": "Subnets for EKS control plane ENIs. Minimum 2 required.",
+      "validation": {
+        "selectionMode": "multi",
+        "minLength": 2
+      }
+    },
+    {
+      "key": "securityGroupIds",
+      "tfPath": "vpc_config.security_group_ids",
+      "label": "Additional Security Group IDs",
+      "section": "network",
+      "order": 3,
+      "required": false,
+      "dataSource": {
+        "endpoint": "/api/aws/ec2/security-groups",
+        "dependsOn": ["vpcId"]
+      },
+      "helpText": "Additional security groups for the EKS control plane ENIs.",
+      "validation": {
+        "selectionMode": "multi"
+      }
+    },
+    {
+      "key": "endpointPublicAccess",
+      "tfPath": "vpc_config.endpoint_public_access",
+      "label": "Enable Public API Endpoint",
+      "section": "network",
+      "order": 4,
+      "required": false,
+      "default": true,
+      "helpText": "Exposes the Kubernetes API server over the internet."
+    },
+    {
+      "key": "endpointPrivateAccess",
+      "tfPath": "vpc_config.endpoint_private_access",
+      "label": "Enable Private API Endpoint",
+      "section": "network",
+      "order": 5,
+      "required": false,
+      "default": false,
+      "helpText": "Exposes the API server via a private endpoint within your VPC."
+    },
+    {
+      "key": "publicAccessCidrs",
+      "tfPath": "vpc_config.public_access_cidrs",
+      "label": "Public Access CIDRs",
+      "section": "network",
+      "order": 6,
+      "required": false,
+      "default": ["0.0.0.0/0"],
+      "helpText": "CIDR blocks allowed to reach the public API endpoint.",
+      "visibleWhen": {
+        "field": "endpointPublicAccess",
+        "operator": "equals",
+        "value": true
+      }
+    },
+
+    {
+      "key": "authenticationMode",
+      "tfPath": "access_config.authentication_mode",
+      "label": "Authentication Mode",
+      "section": "access",
+      "order": 1,
+      "required": false,
+      "default": "API_AND_CONFIG_MAP",
+      "dataSource": {
+        "endpoint": "/api/aws/eks/authentication-modes"
+      },
+      "helpText": "Controls how IAM principals authenticate to the cluster.",
+      "validation": {
+        "enum": ["CONFIG_MAP", "API_AND_CONFIG_MAP", "API"]
+      }
+    },
+    {
+      "key": "bootstrapClusterCreatorAdminPermissions",
+      "tfPath": "access_config.bootstrap_cluster_creator_admin_permissions",
+      "label": "Grant Cluster Creator Admin Permissions",
+      "section": "access",
+      "order": 2,
+      "required": false,
+      "default": true,
+      "helpText": "Automatically grants cluster-admin to the creator IAM principal.",
+      "visibleWhen": {
+        "field": "authenticationMode",
+        "operator": "in",
+        "value": ["API_AND_CONFIG_MAP", "API"]
+      }
+    },
+
+    {
+      "key": "autoModeEnabled",
+      "tfPath": "compute_config.enabled",
+      "label": "Enable EKS Auto Mode",
+      "section": "autoMode",
+      "order": 1,
+      "required": false,
+      "default": false,
+      "helpText": "EKS Auto Mode delegates compute, networking, and storage management to AWS.",
+      "warningText": "Enabling Auto Mode sets bootstrap_self_managed_addons to false."
+    },
+    {
+      "key": "autoModeNodePools",
+      "tfPath": "compute_config.node_pools",
+      "label": "Auto Mode Node Pools",
+      "section": "autoMode",
+      "order": 2,
+      "required": false,
+      "default": ["general-purpose"],
+      "dataSource": {
+        "endpoint": "/api/aws/eks/node-pools"
+      },
+      "helpText": "Node pool configurations managed by EKS Auto Mode.",
+      "validation": {
+        "selectionMode": "multi"
+      },
+      "visibleWhen": {
+        "field": "autoModeEnabled",
+        "operator": "equals",
+        "value": true
+      }
+    },
+    {
+      "key": "autoModeNodeRoleArn",
+      "tfPath": "compute_config.node_role_arn",
+      "label": "Auto Mode Node IAM Role ARN",
+      "section": "autoMode",
+      "order": 3,
+      "required": false,
+      "dataSource": {
+        "endpoint": "/api/aws/iam/roles",
+        "filters": {
+          "policy": "AmazonEKSWorkerNodePolicy"
+        }
+      },
+      "helpText": "IAM role for EC2 nodes launched by EKS Auto Mode.",
+      "validation": {
+        "regex": "^arn:aws:iam::\\d{12}:role/[\\w+=,.@/-]+$"
+      },
+      "visibleWhen": {
+        "field": "autoModeEnabled",
+        "operator": "equals",
+        "value": true
+      }
+    },
+    {
+      "key": "autoModeBlockStorageEnabled",
+      "tfPath": "storage_config.block_storage.enabled",
+      "label": "Auto Mode Block Storage",
+      "section": "autoMode",
+      "order": 4,
+      "required": false,
+      "default": false,
+      "helpText": "Auto-provision and manage EBS volumes for PVCs.",
+      "visibleWhen": {
+        "field": "autoModeEnabled",
+        "operator": "equals",
+        "value": true
+      }
+    },
+    {
+      "key": "autoModeElasticLoadBalancingEnabled",
+      "tfPath": "kubernetes_network_config.elastic_load_balancing.enabled",
+      "label": "Auto Mode Load Balancing",
+      "section": "autoMode",
+      "order": 5,
+      "required": false,
+      "default": false,
+      "helpText": "Auto-provision AWS Load Balancers for Services and Ingress.",
+      "visibleWhen": {
+        "field": "autoModeEnabled",
+        "operator": "equals",
+        "value": true
+      }
+    },
+
+    {
+      "key": "serviceIpv4Cidr",
+      "tfPath": "kubernetes_network_config.service_ipv4_cidr",
+      "label": "Service IPv4 CIDR",
+      "section": "networking",
+      "order": 1,
+      "required": false,
+      "dataSource": {
+        "endpoint": "/api/aws/eks/cidr-suggestions",
+        "dependsOn": ["vpcId"]
+      },
+      "helpText": "CIDR block for Kubernetes ClusterIP services. Cannot overlap with VPC.",
+      "warningText": "This value is immutable after cluster creation.",
+      "validation": {
+        "regex": "^(10\\.\\d{1,3}|172\\.(1[6-9]|2\\d|3[01])|192\\.168)\\.\\d{1,3}\\.\\d{1,3}/\\d{2}$"
+      }
+    },
+    {
+      "key": "ipFamily",
+      "tfPath": "kubernetes_network_config.ip_family",
+      "label": "IP Family",
+      "section": "networking",
+      "order": 2,
+      "required": false,
+      "default": "ipv4",
+      "dataSource": {
+        "endpoint": "/api/aws/eks/ip-families",
+        "dependsOn": ["vpcId"]
+      },
+      "helpText": "IP family for pod and service addressing.",
+      "warningText": "Immutable after cluster creation.",
+      "validation": {
+        "enum": ["ipv4", "ipv6"]
+      }
+    },
+
+    {
+      "key": "enabledLogTypes",
+      "tfPath": "enabled_cluster_log_types",
+      "label": "Control Plane Log Types",
+      "section": "logging",
+      "order": 1,
+      "required": false,
+      "dataSource": {
+        "endpoint": "/api/aws/eks/log-types"
+      },
+      "helpText": "EKS control plane log streams sent to CloudWatch Logs.",
+      "validation": {
+        "enum": [
+          "api",
+          "audit",
+          "authenticator",
+          "controllerManager",
+          "scheduler"
+        ],
+        "selectionMode": "multi"
+      }
+    },
+    {
+      "key": "logRetentionInDays",
+      "tfPath": "cloudwatch_log_group_retention_in_days",
+      "label": "Log Retention (Days)",
+      "section": "logging",
+      "order": 2,
+      "required": false,
+      "default": 90,
+      "dataSource": {
+        "endpoint": "/api/aws/logs/retention-periods"
+      },
+      "helpText": "Retention period for CloudWatch Logs group.",
+      "validation": {
+        "enum": [
+          1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827,
+          3653
+        ]
+      }
+    },
+
+    {
+      "key": "upgradePolicy",
+      "tfPath": "upgrade_policy.support_type",
+      "label": "Support Policy",
+      "section": "upgrades",
+      "order": 1,
+      "required": false,
+      "default": "EXTENDED",
+      "dataSource": {
+        "endpoint": "/api/aws/eks/support-policies"
+      },
+      "helpText": "STANDARD (14 months) or EXTENDED (26 months with additional cost).",
+      "validation": {
+        "enum": ["STANDARD", "EXTENDED"]
+      }
+    },
+    {
+      "key": "zonalShiftEnabled",
+      "tfPath": "zonal_shift_config.enabled",
+      "label": "Enable Zonal Shift",
+      "section": "upgrades",
+      "order": 2,
+      "required": false,
+      "default": false,
+      "helpText": "Enable ARC Zonal Shift for traffic management across AZs."
+    },
+
+    {
+      "key": "tags",
+      "tfPath": "tags",
+      "label": "Tags",
+      "section": "advanced",
+      "order": 10,
+      "required": false,
+      "helpText": "Key-value tags for the EKS cluster."
+    }
+  ],
+
+  "legacyAliases": {
+    "name": ["cluster_name", "eks_cluster_name"],
+    "version": ["kubernetes_version", "k8s_version"],
+    "roleArn": ["role_arn", "iam_role_arn"],
+    "vpcId": ["vpc_id", "network_vpc_id"],
+    "subnetIds": ["subnet_ids", "network_subnet_ids"],
+    "securityGroupIds": ["security_group_ids", "additional_security_group_ids"],
+    "enabledLogTypes": ["enabled_cluster_log_types", "log_types"],
+    "encryptionConfigKeyArn": ["kms_key_arn", "encryption_key_arn"],
+    "authenticationMode": [
+      "authentication_mode",
+      "access_config_authentication_mode"
+    ],
+    "upgradePolicy": ["support_type", "upgrade_support_type"]
+  },
+
+  "nestedBlocks": [
+    {
+      "terraformKey": "encryption_config",
+      "isArray": true,
+      "condition": "encryptionConfigKeyArn !== undefined && encryptionConfigKeyArn !== ''",
+      "fields": [
+        {
+          "key": "encryptionConfigResources",
+          "tfKey": "resources",
+          "type": "array"
+        },
+        {
+          "key": "encryptionConfigKeyArn",
+          "tfKey": "provider.key_arn",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "terraformKey": "vpc_config",
+      "isArray": false,
+      "condition": "vpcId !== undefined",
+      "fields": [
+        {
+          "key": "vpcId",
+          "tfKey": "vpc_id",
+          "type": "string"
+        },
+        {
+          "key": "subnetIds",
+          "tfKey": "subnet_ids",
+          "type": "array"
+        },
+        {
+          "key": "securityGroupIds",
+          "tfKey": "security_group_ids",
+          "type": "array"
+        },
+        {
+          "key": "endpointPublicAccess",
+          "tfKey": "endpoint_public_access",
+          "type": "boolean"
+        },
+        {
+          "key": "endpointPrivateAccess",
+          "tfKey": "endpoint_private_access",
+          "type": "boolean"
+        },
+        {
+          "key": "publicAccessCidrs",
+          "tfKey": "public_access_cidrs",
+          "type": "array"
+        }
+      ]
+    },
+    {
+      "terraformKey": "access_config",
+      "isArray": false,
+      "condition": "authenticationMode !== undefined",
+      "fields": [
+        {
+          "key": "authenticationMode",
+          "tfKey": "authentication_mode",
+          "type": "string"
+        },
+        {
+          "key": "bootstrapClusterCreatorAdminPermissions",
+          "tfKey": "bootstrap_cluster_creator_admin_permissions",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "terraformKey": "compute_config",
+      "isArray": false,
+      "condition": "autoModeEnabled === true",
+      "fields": [
+        {
+          "key": "autoModeEnabled",
+          "tfKey": "enabled",
+          "type": "boolean"
+        },
+        {
+          "key": "autoModeNodePools",
+          "tfKey": "node_pools",
+          "type": "array"
+        },
+        {
+          "key": "autoModeNodeRoleArn",
+          "tfKey": "node_role_arn",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "terraformKey": "storage_config",
+      "isArray": false,
+      "condition": "autoModeEnabled === true && autoModeBlockStorageEnabled !== undefined",
+      "fields": [
+        {
+          "key": "autoModeBlockStorageEnabled",
+          "tfKey": "block_storage.enabled",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "terraformKey": "kubernetes_network_config",
+      "isArray": false,
+      "condition": "serviceIpv4Cidr !== undefined || ipFamily !== undefined || autoModeElasticLoadBalancingEnabled !== undefined",
+      "fields": [
+        {
+          "key": "serviceIpv4Cidr",
+          "tfKey": "service_ipv4_cidr",
+          "type": "string"
+        },
+        {
+          "key": "ipFamily",
+          "tfKey": "ip_family",
+          "type": "string"
+        },
+        {
+          "key": "autoModeElasticLoadBalancingEnabled",
+          "tfKey": "elastic_load_balancing.enabled",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "terraformKey": "upgrade_policy",
+      "isArray": false,
+      "condition": "upgradePolicy !== undefined",
+      "fields": [
+        {
+          "key": "upgradePolicy",
+          "tfKey": "support_type",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "terraformKey": "zonal_shift_config",
+      "isArray": false,
+      "condition": "zonalShiftEnabled !== undefined",
+      "fields": [
+        {
+          "key": "zonalShiftEnabled",
+          "tfKey": "enabled",
+          "type": "boolean"
+        }
+      ]
+    }
+  ],
+
+  "conditionals": [
+    {
+      "condition": "!endpointPublicAccess && !endpointPrivateAccess",
+      "error": "At least one of Public or Private API endpoint access must be enabled.",
+      "requiredFields": ["endpointPublicAccess"]
+    },
+    {
+      "condition": "autoModeEnabled === true && !autoModeNodeRoleArn && autoModeNodePools && autoModeNodePools.length > 0",
+      "error": "Auto Mode Node IAM Role ARN is required when node pools are specified.",
+      "requiredFields": ["autoModeNodeRoleArn"]
+    },
+    {
+      "condition": "encryptionConfigKeyArn && !encryptionConfigResources",
+      "error": "Encryption resources must be specified when a KMS Key ARN is provided.",
+      "requiredFields": ["encryptionConfigResources"]
+    }
+  ]
+}
